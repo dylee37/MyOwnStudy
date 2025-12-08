@@ -48,6 +48,6 @@
 
 <img src="./download.jpg" width='200'>
 
-[![dylee37's GitHub stats](https://github-readme-stats.vercel.app/api?username=dylee37)](https://github.com/anuraghazra/github-readme-stats)
+[![dylee37's GitHub stats](https://github-readme-stats.vercel.app/api?username=dylee37)](https://github.com/dylee37/github-readme-stats)
 
 </div>
