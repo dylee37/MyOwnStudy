@@ -1,5 +1,35 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
+
+
+class CustomUserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email field must be set')
+        
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        # REQUIRED_FIELDS에 포함된 필드들이 superuser 생성 시 누락되지 않도록
+        # 기본값을 설정하거나 create_user에 인자로 전달해야 합니다.
+        extra_fields.setdefault('name', 'admin') 
+        extra_fields.setdefault('selected_voice', 'voice1')
+        extra_fields.setdefault('selected_category', '소설/시/희곡')
+        
+        return self.create_user(email, password, **extra_fields)
 
 # 목소리 옵션 & 카테고리 옵션 정의 (모델 필드의 Choices로 사용)
 VOICE_CHOICES = [
@@ -21,6 +51,8 @@ CATEGORY_CHOICES = [
 ]
 
 class CustomUser(AbstractUser):
+    username = None
+    objects = CustomUserManager()
     # AbstractUser에는 username, first_name, last_name, email, password 필드가 이미 포함되어 있음
 
     # name 필드 (프론트엔드 닉네임)

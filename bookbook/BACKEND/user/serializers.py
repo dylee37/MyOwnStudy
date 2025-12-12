@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.authtoken.serializers import AuthTokenSerializer
 from .models import CustomUser
 
 class UserSignupSerializer(serializers.ModelSerializer):
@@ -38,3 +39,37 @@ class UserSignupSerializer(serializers.ModelSerializer):
             selected_category=validated_data['selected_category']
         )
         return user
+    
+
+class AuthTokenCustomSerializer(AuthTokenSerializer):
+    # AbstractUser의 기본 'username' 대신 'email'을 필드로 지정
+    email = serializers.EmailField(label="Email") 
+    password = serializers.CharField(
+        label="Password",
+        style={'input_type': 'password'},
+        trim_whitespace=False
+    )
+
+    # 기본 'username' 필드를 None으로 오버라이드
+    username = None 
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+
+        if email and password:
+            # CustomUser.objects.filter를 사용하여 이메일로 사용자 찾기
+            try:
+                user = CustomUser.objects.get(email=email)
+            except CustomUser.DoesNotExist:
+                user = None
+
+            if user:
+                if user.check_password(password):
+                    # 인증 성공
+                    attrs['user'] = user
+                    return attrs
+        
+        # 인증 실패 시 에러 발생
+        msg = '이메일 또는 비밀번호가 일치하지 않습니다.'
+        raise serializers.ValidationError(msg, code='authorization')
