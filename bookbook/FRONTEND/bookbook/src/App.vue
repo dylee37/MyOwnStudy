@@ -4,6 +4,7 @@
     <MyPage
       v-if="showMyPage"
       :userName="userName"
+      :profileData="userProfile"
       @back="showMyPage = false"
       @logout="handleLogout"
       @deleteAccount="handleDeleteAccount"
@@ -64,7 +65,7 @@
         :stats="stats"
         :isLoggedIn="isLoggedIn"
         @loginClick="showLoginPage = true"
-        @myPageClick="showMyPage = true"
+        @myPageClick="handleMyPageClick"
       />
 
       <BottomNavigation
@@ -105,6 +106,7 @@ const showMyPage = ref(false);
 const showAddCommentDialog = ref(false);
 const userName = ref("독서 애호가");
 const userToken = ref(null);
+const userProfile = ref(null);
 
 const stats = {
   booksRead: 24,
@@ -262,6 +264,37 @@ const handleSubmitComment = ({ text, isVoice, rating }) => {
   showAddCommentDialog.value = false;
 };
 
+const fetchUserProfile = async () => {
+  if (!userToken.value) {
+    // 토큰 없으면 로딩 불가
+    return;
+  }
+
+  const API_URL = "http://127.0.0.1:8000/api/v1/user/profile/update/";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "GET", // GET 요청으로 프로필 조회
+      headers: {
+        Authorization: `Token ${userToken.value}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      userProfile.value = data; // 🚨 프로필 데이터 저장
+      // 닉네임도 최신 정보로 업데이트
+      userName.value = data.nickname;
+    } else {
+      console.error("프로필 로드 실패:", response.status);
+      userProfile.value = null;
+    }
+  } catch (error) {
+    console.error("프로필 로드 중 오류 발생:", error);
+    userProfile.value = null;
+  }
+};
+
 // const handleLogin = ({ email, password }) => {
 //   isLoggedIn.value = true;
 //   showLoginPage.value = false;
@@ -362,7 +395,7 @@ const handleSignup = async (
       throw new Error(errorMessage);
     }
 
-    const userData = await response.json(); 
+    const userData = await response.json();
 
     isLoggedIn.value = true;
     userName.value = name;
@@ -388,46 +421,105 @@ const handleLogout = () => {
 // };
 
 const handleDeleteAccount = async () => {
-    if (!confirm('정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-        return;
+  if (
+    !confirm("정말로 계정을 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")
+  ) {
+    return;
+  }
+  if (!userToken.value) {
+    alert("인증 정보가 없습니다. 다시 로그인 해주세요.");
+    isLoggedIn.value = false;
+    showMyPage.value = false;
+    return;
+  }
+
+  const API_URL = "http://127.0.0.1:8000/api/v1/user/delete/";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${userToken.value}`,
+      },
+    });
+
+    if (response.status === 204) {
+      isLoggedIn.value = false;
+      userToken.value = null;
+      showMyPage.value = false;
+      alert("회원 탈퇴가 완료되었습니다.");
+    } else {
+      const errorData = await response.json();
+      let errorMessage = errorData.detail || "계정 탈퇴에 실패했습니다.";
+      throw new Error(errorMessage);
     }
-    if (!userToken.value) {
-        alert('인증 정보가 없습니다. 다시 로그인 해주세요.');
-        isLoggedIn.value = false;
-        showMyPage.value = false;
-        return;
-    }
-
-    const API_URL = 'http://127.0.0.1:8000/api/v1/user/delete/'; 
-
-    try {
-        const response = await fetch(API_URL, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Token ${userToken.value}`, 
-            },
-        });
-
-        if (response.status === 204) {
-            isLoggedIn.value = false;
-            userToken.value = null;
-            showMyPage.value = false;
-            alert('회원 탈퇴가 완료되었습니다.');
-        } else {
-            const errorData = await response.json();
-            let errorMessage = errorData.detail || '계정 탈퇴에 실패했습니다.';
-            throw new Error(errorMessage);
-        }
-
-    } catch (error) {
-        console.error('탈퇴 API 호출 오류:', error);
-        alert(`계정 탈퇴 중 오류가 발생했습니다: ${error.message}`);
-    }
+  } catch (error) {
+    console.error("탈퇴 API 호출 오류:", error);
+    alert(`계정 탈퇴 중 오류가 발생했습니다: ${error.message}`);
+  }
 };
 
-const handleUpdateProfile = (name) => {
-  userName.value = name;
+const handleUpdateProfile = async (data) => {
+  if (!userToken.value) {
+    alert("인증 정보가 없습니다. 다시 로그인 해주세요.");
+    return false;
+  }
+
+  const API_URL = "http://127.0.0.1:8000/api/v1/user/profile/update/";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${userToken.value}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage =
+        errorData.nickname?.[0] ||
+        errorData.selected_voice?.[0] ||
+        "프로필 업데이트에 실패했습니다.";
+      throw new Error(errorMessage);
+    }
+
+    const updatedProfile = await response.json();
+
+    // 로컬 상태 업데이트
+    if (updatedProfile.nickname) {
+      userName.value = updatedProfile.nickname;
+    }
+    if (userProfile.value) {
+      // userProfile.value 객체에 최신 데이터를 병합
+      Object.assign(userProfile.value, updatedProfile);
+    }
+    
+    // 변경된 필드에 따라 다른 알림 표시
+    if (data.nickname) {
+      alert("닉네임이 변경되었습니다.");
+    } else if (data.selected_voice) {
+      alert("목소리가 변경되었습니다.");
+    }
+
+    return true; // 성공 반환
+  } catch (error) {
+    console.error("프로필 업데이트 API 오류:", error);
+    alert(`오류: ${error.message}`);
+    return false; // 실패 반환
+  }
+};
+
+const handleMyPageClick = async () => {
+    if (isLoggedIn.value) {
+        await fetchUserProfile();
+        showMyPage.value = true;
+    } else {
+        showLoginPage.value = true;
+    }
 };
 
 const handleShowSignup = () => {
