@@ -1,0 +1,226 @@
+<template>
+  <Teleport to="body">
+    <div v-if="isOpen" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center"
+      @click.self="$emit('close')">
+      <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-[#333333]">TOKTOK 작성</h2>
+          <button @click="$emit('close')" class="p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="text-[#666666]">
+              <line x1="18" x2="6" y1="6" y2="18" />
+              <line x1="6" x2="18" y1="6" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Type Selection -->
+        <div class="flex gap-2 mb-6">
+          <button @click="commentType = 'text'" :class="[
+            'flex-1 py-3 rounded-lg transition-colors',
+            commentType === 'text'
+              ? 'bg-[#f4f2e5] text-[#333333]'
+              : 'bg-white text-[#666666] border border-[#E0E0E0]'
+          ]">
+            텍스트
+          </button>
+          <button @click="commentType = 'voice'" :class="[
+            'flex-1 py-3 rounded-lg transition-colors',
+            commentType === 'voice'
+              ? 'bg-[#f4f2e5] text-[#333333]'
+              : 'bg-white text-[#666666] border border-[#E0E0E0]'
+          ]">
+            음성
+          </button>
+        </div>
+
+        <!-- Rating -->
+        <div class="mb-6">
+          <label class="block text-[#333333] mb-3" style="font-size: 0.875rem">
+            평점 ({{ selectedRating.toFixed(0) }}/5)
+          </label>
+          <div class="flex justify-center">
+            <StarRating :rating="selectedRating" :size="32" :onRatingChange="handleRatingChange" />
+          </div>
+        </div>
+
+        <!-- Text Input -->
+        <div v-if="commentType === 'text'" class="mb-6">
+          <label class="block text-[#333333] mb-2" style="font-size: 0.875rem">
+            댓글 내용
+          </label>
+          <textarea v-model="commentText" placeholder="책에 대한 생각을 자유롭게 남겨주세요"
+            class="w-full px-4 py-3 bg-[#FAFAFA] rounded-lg border border-[#E0E0E0] focus:outline-none focus:border-[#f4f2e5] resize-none"
+            rows="5"></textarea>
+        </div>
+
+        <!-- Voice Recording -->
+        <div v-else class="mb-6">
+          <label class="block text-[#333333] mb-3" style="font-size: 0.875rem">
+            음성 녹음
+          </label>
+          <div class="bg-[#FAFAFA] rounded-lg p-6 flex flex-col items-center">
+            <button @click="toggleRecording" :disabled="isRecording && !sttCompleted" :class="[
+              'w-16 h-16 rounded-full flex items-center justify-center transition-colors mb-3',
+              isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-[#f4f2e5] hover:bg-[#e8e6d9]',
+              { 'animate-pulse': isRecording }
+            ]">
+              <svg v-if="!isRecording" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="text-[#333333]">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" x2="12" y1="19" y2="22" />
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white"
+                stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="6" y="4" width="12" height="16" rx="2" />
+              </svg>
+            </button>
+
+            <p class="text-[#666666]" style="font-size: 0.875rem">
+              <span v-if="isRecording" class="text-red-500 font-bold">🎙️ 녹음 중...</span>
+              <span v-else-if="sttCompleted" class="text-green-600 font-bold">✅ 인식 완료! (재녹음 가능)</span>
+              <span v-else-if="sttError" class="text-red-500 font-bold">❌ 음성 인식 실패</span>
+              <span v-else>버튼을 눌러 녹음 시작</span>
+            </p>
+
+            <textarea v-model="commentText" placeholder="음성 인식을 시작하거나, 텍스트를 직접 수정하세요." :readonly="isRecording"
+              class="w-full mt-4 px-4 py-3 bg-white rounded-lg border border-[#E0E0E0] focus:outline-none focus:border-[#f4f2e5] resize-none"
+              rows="3"></textarea>
+          </div>
+        </div>
+
+        <button @click="handleSubmit"
+          :disabled="!canSubmit || isRecording || (commentType === 'voice' && !sttCompleted)"  
+          :class="[
+            'w-full py-3 rounded-lg transition-colors',
+            canSubmit && !isRecording && !(commentType === 'voice' && !sttCompleted) // ⭐️ 활성화 색상 조건 ⭐️
+              ? 'bg-[#f4f2e5] text-[#333333] hover:bg-[#e8e6d9]'
+              : 'bg-[#E0E0E0] text-[#999999] cursor-not-allowed'
+          ]">
+          TOKTOK 등록
+        </button>
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+
+
+
+<script setup>
+import { ref, computed } from 'vue';
+import StarRating from './StarRating.vue';
+
+// ⭐️⭐️ Prop 정의 (필수) ⭐️⭐️
+// ⭐️⭐️ Prop 정의 수정: comment, currentUserId 제거하고, isOpen만 추가 ⭐️⭐️
+const props = defineProps({
+    isOpen: { // 템플릿에서 사용되고 있으므로 추가
+        type: Boolean,
+        required: true
+    }
+});
+
+const emit = defineEmits(['close', 'submit']);
+
+const commentType = ref('text');
+const commentText = ref('');
+const selectedRating = ref(5);
+const isRecording = ref(false);
+
+// ⭐️⭐️ 1. 음성 인식(STT) 완료 상태 추가 ⭐️⭐️
+const sttCompleted = ref(false);
+// ⭐️⭐️ 2. 음성 인식 중 에러 상태 추가 (선택적) ⭐️⭐️
+const sttError = ref(false);
+
+const canSubmit = computed(() => {
+  if (commentType.value === 'text') {
+    return commentText.value.trim().length > 0 && !isRecording.value;
+  }
+  // ⭐️⭐️ 음성 모드일 경우: 녹음 중이 아니고, STT가 완료되었으며, 내용이 비어있지 않아야 함 ⭐️⭐️
+  if (commentType.value === 'voice') {
+    return !isRecording.value && sttCompleted.value && commentText.value.trim().length > 0;
+  }
+  return false;
+});
+
+
+
+
+const handleRatingChange = (rating) => {
+  selectedRating.value = rating;
+};
+const toggleRecording = () => {
+  // 녹음 시작
+  if (!isRecording.value) {
+    // 상태 초기화
+    sttCompleted.value = false;
+    sttError.value = false;
+    commentText.value = ''; // 녹음 시작 시 기존 텍스트 초기화
+
+    isRecording.value = true;
+    console.log("녹음 시작...");
+
+    // ⭐️⭐️ 실제 녹음 시작 및 STT API 호출 로직 (가정) ⭐️⭐️
+    // 3초 동안 녹음한다고 가정하고, 3초 후 STT 결과를 얻습니다.
+    setTimeout(() => {
+      stopRecordingAndProcessSTT();
+    }, 3000);
+
+  } else {
+    // 녹음 중지 (사용자가 수동으로 중지했을 때)
+    console.log("수동 녹음 중지...");
+    stopRecordingAndProcessSTT();
+  }
+};
+
+
+const stopRecordingAndProcessSTT = () => {
+  if (!isRecording.value) return; // 이미 중지 상태면 중복 실행 방지
+
+  isRecording.value = false;
+  console.log("녹음 종료 및 STT 처리 시작...");
+
+  // ⭐️⭐️ STT API 호출 및 결과 처리 로직 (임시 구현) ⭐️⭐️
+  // 실제로는 녹음된 오디오 파일을 서버에 업로드하고, 서버가 STT API를 호출한 뒤 텍스트를 받습니다.
+
+  // 임시로 성공 시 텍스트 변환
+  const simulatedText = "이번 책은 정말 기대 이상이었어요. 특히 작가의 섬세한 심리 묘사가 인상적이었습니다. 많은 사람들에게 추천하고 싶어요!";
+
+  // 변환 성공 가정
+  commentText.value = simulatedText;
+  sttCompleted.value = true;
+  sttError.value = false;
+
+  // 만약 STT 실패 시:
+  // sttError.value = true;
+  // commentText.value = '';
+};
+
+const handleSubmit = () => {
+  if (!canSubmit.value) return;
+
+  // ⭐️⭐️ 음성 모드일 경우, 녹음이 완료되었는지 추가 확인 ⭐️⭐️
+  if (commentType.value === 'voice' && !sttCompleted.value) {
+    alert('음성 녹음을 먼저 완료해주세요.');
+    return;
+  }
+
+  emit('submit', {
+    text: commentText.value,
+    isVoice: commentType.value === 'voice',
+    rating: selectedRating.value
+  });
+
+  // Reset
+  commentText.value = '';
+  selectedRating.value = 10;
+  commentType.value = 'text';
+  isRecording.value = false;
+  sttCompleted.value = false; // STT 상태 초기화
+  sttError.value = false;
+};
+</script>
