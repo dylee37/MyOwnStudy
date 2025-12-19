@@ -80,4 +80,20 @@ class CustomUserSerializer(serializers.ModelSerializer):
         # ⭐️ 프론트엔드에 필요한 필드만 포함
         fields = ('id', 'email', 'name', 'selected_voice', 'selected_category')
 
+class UserProfileUpdateSerializer(serializers.ModelSerializer):
+    nickname = serializers.CharField(source='name', required=False)
+    class Meta:
+        model = CustomUser
+        # 클라이언트가 수정 요청을 보낼 수 있는 필드와 조회 필드를 지정
+        fields = ('nickname', 'selected_voice', 'email') 
+        read_only_fields = ('email',) # 이메일은 수정 불가
 
+    def validate_nickname(self, value):
+        # 닉네임이 변경되었고, 이미 존재하는지 확인 (Unique 검사)
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        # 현재 사용자(user)를 제외하고, 동일한 name이 DB에 존재하는지 확인
+        if CustomUser.objects.filter(name=value).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("이미 사용 중인 닉네임입니다.")
+        return value

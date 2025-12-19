@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import UserSignupView, UserLoginView, PersonalizedRecommendationView
+from .views import UserSignupView, UserLoginView, PersonalizedRecommendationView, UserProfileUpdateView
 from . import views
 
 urlpatterns = [
@@ -9,4 +9,5 @@ urlpatterns = [
     path('library/', views.user_library, name='user_library'),
     path('delete/', views.delete_account, name='delete_account'),
     path('recommendation/personalized/', PersonalizedRecommendationView.as_view(), name='personalized_recommendation'),
+    path('profile/update/', UserProfileUpdateView.as_view(), name='profile-update'),
 ]

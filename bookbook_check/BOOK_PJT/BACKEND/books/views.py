@@ -1,5 +1,6 @@
 import random
 from rest_framework import generics, status, permissions
+from django.conf import settings
 from .models import Book, Comment
 from .serializers import BookListSerializer, BookDetailSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -11,7 +12,10 @@ from .utils import get_embedding, calculate_cosine_similarity, get_llm_recommend
 import numpy as np
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
 import json
+from openai import OpenAI
+import requests
 
 
 
@@ -143,6 +147,7 @@ class BestsellerListView(APIView):
 
 User = get_user_model() # Django 기본 User 모델을 가져옵니다.
 
+
 class RecommendationView(APIView):
     """
     사용자 맞춤형 도서 추천을 제공합니다.
@@ -253,7 +258,6 @@ class RecommendationView(APIView):
                 })
                 
             return Response(final_data, status=status.HTTP_200_OK)
-			
 
 class CommentCreateView(generics.CreateAPIView):
     """
@@ -301,3 +305,58 @@ class CommentDestroyView(generics.DestroyAPIView):
             raise PermissionDenied("자신이 작성한 댓글만 삭제할 수 있습니다.")
             
         return comment
+    
+
+class TextToSpeechView(APIView):
+    """
+    텍스트와 선택된 목소리를 받아 OpenAI TTS API로 음성을 생성합니다.
+    URL: POST /api/books/tts/
+    """
+    permission_classes = [permissions.AllowAny]
+    def post(self, request):
+        text = request.data.get('text')
+        voice_id = request.data.get('voice', 'voice1')
+        
+        # 프론트엔드 voice ID를 OpenAI 실제 목소리 이름으로 매핑
+        voice_map = {
+            'voice1': 'alloy',
+            'voice2': 'echo',
+            'voice3': 'shimmer',
+            'voice4': 'onyx'
+        }
+        selected_voice = voice_map.get(voice_id, 'alloy')
+
+        if not text:
+            return Response({"detail": "텍스트가 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            print(f"DEBUG: GMS_KEY is {settings.GMS_KEY[:5]}...")
+            # settings에 정의된 GMS_KEY 사용
+            gms_url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/speech"
+            
+            headers = {
+                "Authorization": f"Bearer {settings.GMS_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": "gpt-4o-mini-tts",
+                "input": text,
+                "voice": selected_voice,
+                "response_format": "mp3"
+            }
+
+            # ⭐️ 라이브러리 대신 직접 POST 요청 ⭐️
+            response = requests.post(gms_url, headers=headers, json=payload)
+
+            if response.status_code == 200:
+                # 성공 시 오디오 파일 반환
+                return HttpResponse(response.content, content_type="audio/mpeg")
+            else:
+                # GMS 서버에서 에러가 온 경우
+                print(f"GMS ERROR: {response.status_code} - {response.text}")
+                return Response(response.json(), status=response.status_code)
+            
+        except Exception as e:
+            print(f"SERVER ERROR: {str(e)}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

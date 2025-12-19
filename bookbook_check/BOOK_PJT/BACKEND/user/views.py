@@ -13,6 +13,8 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from books.utils import get_llm_recommendation 
 from books.models import Book
 from books.serializers import BookListSerializer # 책 정보 직렬화용
+from .serializers import UserProfileUpdateSerializer
+from .models import CustomUser
 from rest_framework.views import APIView 
 import json
 import logging
@@ -205,3 +207,22 @@ class PersonalizedRecommendationView(APIView):
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"LLM 응답 JSON 처리 실패: {e}, 응답 텍스트: {llm_response_json[:200]}...")
             return Response({"detail": f"LLM 응답을 처리하는 데 실패했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class UserProfileUpdateView(generics.RetrieveUpdateAPIView):
+    """
+    인증된 사용자의 프로필 정보(닉네임, 목소리 등)를 조회(GET)하고 부분 수정(PATCH)합니다.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserProfileUpdateSerializer 
+    queryset = CustomUser.objects.all()
+
+    def get_object(self):
+        # 요청을 보낸 인증된 사용자(request.user) 객체를 반환합니다.
+        return self.request.user
+
+    # 부분 업데이트를 위해 PUT 대신 PATCH를 명시적으로 선호합니다.
+    def update(self, request, *args, **kwargs):
+        # partial=True 설정으로 부분 업데이트 허용 (예: name만 보낼 수 있음)
+        kwargs['partial'] = True 
+        return super().update(request, *args, **kwargs)

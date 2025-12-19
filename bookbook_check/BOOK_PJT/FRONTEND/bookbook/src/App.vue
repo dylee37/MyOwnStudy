@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-background">
-    <MyPage v-if="showMyPage" :userName="userName" @back="showMyPage = false" @logout="handleLogout"
+    <MyPage v-if="showMyPage" :userName="userName" :profileData="userProfile" @back="showMyPage = false" @logout="handleLogout"
       @deleteAccount="handleDeleteAccount" @updateProfile="handleUpdateProfile" />
 
     <SignupPage v-else-if="showSignupPage" @signup="handleSignup" @close="showSignupPage = false"
@@ -28,10 +28,16 @@
       <LibraryPage v-else-if="activeTab === 'library'" :books="isLoggedIn ? libraryBooks : []" :isLoggedIn="isLoggedIn"
         @bookClick="handleBookClick" @loginClick="showLoginPage = true" />
       <ProfilePage v-else-if="activeTab === 'profile'" :userName="userName" :stats="stats" :isLoggedIn="isLoggedIn"
-        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="showMyPage = true" />
+        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="handleMyPageClick" />
       <SearchDialog :isOpen="isSearchOpen" :books="books" @close="isSearchOpen = false" @bookClick="handleBookClick" />
 
       <BottomNavigation :activeTab="activeTab" @tabChange="activeTab = $event" />
+      <SearchDialog
+        :isOpen="isSearchOpen"
+        :books="mockBooks"
+        @close="isSearchOpen = false"
+        @bookClick="handleBookClick"
+      />
     </template>
   </div>
 </template>
@@ -66,6 +72,7 @@ const userData = ref(null);
 const userName = ref('복복');
 const libraryBooks = ref([]); 
 const books = ref([]);
+const userProfile = ref(null);
 
 const store = useStore()
 
@@ -227,6 +234,38 @@ const handleSubmitComment = async ({ text, isVoice, rating }) => {
   }
 };
 
+const fetchUserProfile = async () => {
+  const token = localStorage.getItem('authToken');
+  if (!token) {
+    // 토큰 없으면 로딩 불가
+    return;
+  }
+
+  const API_URL = "http://127.0.0.1:8000/api/v1/user/profile/update/";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "GET", // GET 요청으로 프로필 조회
+      headers: {
+        Authorization: `Token ${token}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      userProfile.value = data; // 🚨 프로필 데이터 저장
+      // 닉네임도 최신 정보로 업데이트
+      userName.value = data.nickname;
+    } else {
+      console.error("프로필 로드 실패:", response.status);
+      userProfile.value = null;
+    }
+  } catch (error) {
+    console.error("프로필 로드 중 오류 발생:", error);
+    userProfile.value = null;
+  }
+};
+
 
 const handleLogin = async (email, password) => {
   try {
@@ -378,14 +417,77 @@ const handleDeleteComment = async (commentId) => {
 };
 
 
-const handleUpdateProfile = (newNickname) => {
-  if (userData.value) {
-    userData.value.nickname = newNickname; 
+// const handleUpdateProfile = (newNickname) => {
+//   if (userData.value) {
+//     userData.value.nickname = newNickname; 
+//   }
+//   userName.value = newNickname;
+//   alert(`닉네임이 ${newNickname}(으)로 변경되었습니다.`);
+// };
+
+const handleUpdateProfile = async (data) => {
+  const token = localStorage.getItem('authToken');
+  if (!token) {
+    alert("인증 정보가 없습니다. 다시 로그인 해주세요.");
+    return false;
   }
-  userName.value = newNickname;
-  alert(`닉네임이 ${newNickname}(으)로 변경되었습니다.`);
+
+  const API_URL = "http://127.0.0.1:8000/api/v1/user/profile/update/";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${token}`,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      const errorMessage =
+        errorData.nickname?.[0] ||
+        errorData.selected_voice?.[0] ||
+        "프로필 업데이트에 실패했습니다.";
+      throw new Error(errorMessage);
+    }
+
+    const updatedProfile = await response.json();
+
+    // 로컬 상태 업데이트
+    if (updatedProfile.nickname) {
+      userName.value = updatedProfile.nickname;
+    }
+    if (userProfile.value) {
+      // userProfile.value 객체에 최신 데이터를 병합
+      Object.assign(userProfile.value, updatedProfile);
+    }
+    
+    // 변경된 필드에 따라 다른 알림 표시
+    if (data.nickname) {
+      alert("닉네임이 변경되었습니다.");
+    } else if (data.selected_voice) {
+      alert("목소리가 변경되었습니다.");
+    }
+
+    return true; // 성공 반환
+  } catch (error) {
+    console.error("프로필 업데이트 API 오류:", error);
+    alert(`오류: ${error.message}`);
+    return false; // 실패 반환
+  }
 };
 
+const handleMyPageClick = async () => {
+    console.log('handleMyPageClick called, isLoggedIn:', isLoggedIn.value);
+    if (isLoggedIn.value) {
+        await fetchUserProfile();
+        showMyPage.value = true;
+    } else {
+        showLoginPage.value = true;
+    }
+};
 
 const handleShowSignup = () => {
   showLoginPage.value = false;
