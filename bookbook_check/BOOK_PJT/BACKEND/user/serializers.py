@@ -80,7 +80,6 @@ class CustomUserSerializer(serializers.ModelSerializer):
         # ⭐️ 프론트엔드에 필요한 필드만 포함
         fields = ('id', 'email', 'name', 'selected_voice', 'selected_category')
 
-
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     nickname = serializers.CharField(source='name', required=False)
     class Meta:

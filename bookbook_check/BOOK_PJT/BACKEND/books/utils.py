@@ -1,3 +1,4 @@
+
 # books/utils.py
 
 import os
@@ -16,7 +17,7 @@ GMS_API_BASE = "https://gms.ssafy.io/gmsapi/"
 try:
     client = OpenAI(
         api_key=GMS_API_KEY,           # GMS Key 사용
-        base_url=GMS_API_BASE + "api.openai.com/v1/"        # GMS 엔드포인트 사용
+        base_url=GMS_API_BASE + "api.openai.com/v1"       # GMS 엔드포인트 사용
     ) 
 except Exception as e:
     print(f"GMS 클라이언트 초기화 실패: API 키 설정 확인 필요. {e}")
@@ -95,7 +96,7 @@ def get_llm_recommendation(prompt_message):
         response = client.chat.completions.create(
             model=LLM_MODEL,
             messages=[
-                {"role": "system", "content": "당신은 한국 시장의 판매 트렌드를 잘 아는 전문 도서 추천가입니다. 사용자에게 제공된 데이터를 기반으로 가장 판매량이 높을 것으로 예상되는 책의 제목과 저자를 응답하세요. 응답은 오직 JSON 리스트 형태로만 이루어져야 합니다."},
+                {"role": "system", "content": "당신은 한국 시장의 판매 트렌드를 잘 아는 전문 도서 추천가입니다. 사용자에게 제공된 데이터를 기반으로 가장 판매량이 높을 것으로 예상되는 책의 제목과 저자를 20권 이상 겹치지 않도록 응답하세요. 응답은 오직 JSON 리스트 형태로만 이루어져야 합니다."},
                 {"role": "user", "content": prompt_message}
             ],
             # ⭐️ 응답을 JSON 형식으로 강제합니다. ⭐️

@@ -1,3 +1,4 @@
+import random
 from rest_framework import generics, status, permissions
 from django.conf import settings
 from .models import Book, Comment
@@ -15,6 +16,8 @@ from django.http import HttpResponse
 import json
 from openai import OpenAI
 import requests
+
+
 
 # 책 목록 조회 및 생성 (GET / POST)
 class BookListView(generics.ListCreateAPIView):
@@ -97,7 +100,42 @@ class BestsellerListView(APIView):
     """
     def get(self, request, format=None):
         # is_bestseller 필드가 True인 책만 필터링 (최대 20권)
-        bestsellers = Book.objects.filter(is_bestseller=True).order_by('-id')[:20]
+        # 1. 일단 DB 확인
+        bestsellers = Book.objects.filter(is_bestseller=True)[:20]
+
+        # 2. 비어있다면?
+        if not bestsellers.exists():
+            # 랜덤 200권 뽑기
+            sample_books = Book.objects.all().order_by('?')[:200]
+            
+            # GPT에게 보낼 텍스트 생성
+            books_data = "\n".join([f"ID:{b.id}, 제목:{b.title}, 저자:{b.author}" for b in sample_books])
+            
+            prompt = f"""
+            당신은 도서 추천 전문가입니다. 아래 200권의 리스트 중 베스트셀러가 될 만한 20권을 선정하세요.
+            반드시 아래 JSON 형식으로 응답하세요.
+            {{ "recommendations": [ {{"book_id": ID값, "reason": "이유"}}, ... ] }}
+            
+            리스트:
+            {books_data}
+            """
+            
+            # GMS_KEY를 사용하여 GPT 호출
+            llm_response = get_llm_recommendation(prompt)
+            
+            if llm_response:
+                try:
+                    res_data = json.loads(llm_response)
+                    best_ids = list(set([item['book_id'] for item in res_data.get('recommendations', [])]))
+                    
+                    # DB에 저장해서 다음부터 GPT 안 써도 되도록
+                    Book.objects.filter(id__in=best_ids).update(is_bestseller=True)
+
+                    bestsellers = Book.objects.filter(is_bestseller=True).order_by('-id')[:20]
+                except Exception as e:
+                    print(f"JSON 파싱 에러: {e}")
+
+
         
         # 목록 형태로 시리얼라이즈
         serializer = BookListSerializer(bestsellers, many=True)
@@ -105,9 +143,121 @@ class BestsellerListView(APIView):
     
 
 
+
+
 User = get_user_model() # Django 기본 User 모델을 가져옵니다.
 
-    
+
+class RecommendationView(APIView):
+    """
+    사용자 맞춤형 도서 추천을 제공합니다.
+    - 로그인 사용자: LLM을 통해 취향(선호 카테고리, 좋아하는 책)에 맞는 2권 추천
+    - 로그아웃 사용자: 베스트셀러 중 2권 랜덤 추천
+    URL: GET /api/books/recommendations/
+    """
+    permission_classes = [permissions.AllowAny] # 인증 여부에 관계없이 접근 허용
+
+    def get(self, request, format=None):
+        # 1. 사용자 인증 여부 확인
+        if request.user.is_authenticated:
+            # --- 로그인 사용자 로직 ---
+            user = request.user
+            
+            # 사용자 정보 추출 (실제 필드 사용)
+            user_info = {
+                "name": user.name,
+                "preferred_category": user.selected_category,
+                "favorite_book": user.favorite_book or "특정 책 없음"
+            }
+
+            # LLM 프롬프트 구성
+            prompt = f"""
+            당신은 사용자의 취향에 딱 맞는 책을 기가 막히게 찾아주는 전문 큐레이터입니다.
+            아래 사용자 프로필을 보고, 좋아할 만한 **책 2권**을 추천해주세요.
+            
+            # 사용자 프로필
+            - 이름: {user_info['name']}
+            - 선호 카테고리: {user_info['preferred_category']}
+            - 최근 관심 책: {user_info['favorite_book']}
+
+            # 추천 규칙
+            1. 응답은 'recommendations' 키를 가진 JSON 객체여야 합니다.
+            2. 각 추천은 'book_id'(정수)와 'reason'(추천 이유)을 포함해야 합니다.
+            3. 추천 이유는 사용자의 프로필(이름, 선호 카테고리, 관심 책)을 근거로 개인화된 메시지를 작성해야 합니다.
+            4. 시스템에 등록된 책 중에서 추천해야 합니다.
+            
+            응답 예시:
+            {{
+                "recommendations": [
+                    {{"book_id": 123, "reason": "{user_info['name']}님, {user_info['preferred_category']} 분야를 좋아하셔서 이 책을 추천해요."}},
+                    {{"book_id": 456, "reason": "'{user_info['favorite_book']}'을 재미있게 읽으셨다면, 비슷한 분위기의 이 책도 분명 마음에 드실 거예요."}}
+                ]
+            }}
+            """
+
+            # LLM 호출 및 결과 처리
+            llm_response_json = get_llm_recommendation(prompt)
+            
+            if not llm_response_json:
+                return Response({"detail": "맞춤 추천 생성에 실패했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            try:
+                response_data = json.loads(llm_response_json)
+                recommendations = response_data.get('recommendations', [])
+                
+                book_ids = [item['book_id'] for item in recommendations if 'book_id' in item]
+                
+                # N+1 문제 방지를 위해 `in_bulk` 사용
+                books_map = Book.objects.in_bulk(book_ids)
+                
+                final_recommendations = []
+                for item in recommendations:
+                    book = books_map.get(item.get('book_id'))
+                    if book:
+                        book_data = BookListSerializer(book).data
+                        final_recommendations.append({
+                            "book": book_data,
+                            "reason": item.get('reason', "추천 이유가 없습니다.")
+                        })
+                
+                # 만약 LLM이 2권을 추천하지 않았을 경우를 대비하여 랜덤 베스트셀러로 채움
+                while len(final_recommendations) < 2:
+                    bestsellers = list(Book.objects.filter(is_bestseller=True))
+                    if not bestsellers: break # 베스트셀러가 없으면 중단
+                    
+                    random_book = random.choice(bestsellers)
+                    if not any(rec['book']['id'] == random_book.id for rec in final_recommendations):
+                         final_recommendations.append({
+                            "book": BookListSerializer(random_book).data,
+                            "reason": "이런 책은 어떠세요? 지금 많은 사람들이 읽고 있는 베스트셀러입니다."
+                        })
+
+                return Response(final_recommendations[:2], status=status.HTTP_200_OK)
+
+            except (json.JSONDecodeError, ValueError):
+                return Response({"detail": "LLM 응답 처리 중 오류가 발생했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        else:
+            # --- 로그아웃 사용자 로직 ---
+            bestsellers = list(Book.objects.filter(is_bestseller=True))
+            
+            if len(bestsellers) >= 2:
+                random_books = random.sample(bestsellers, 2)
+            else:
+                # 베스트셀러가 2권 미만일 경우, 있는 만큼만 반환
+                random_books = bestsellers
+
+            serializer = BookListSerializer(random_books, many=True)
+            
+            # 로그아웃 유저를 위한 추천 이유 추가
+            final_data = []
+            for book_data in serializer.data:
+                final_data.append({
+                    "book": book_data,
+                    "reason": "지금 많은 사람들이 읽고 있는 베스트셀러입니다."
+                })
+                
+            return Response(final_data, status=status.HTTP_200_OK)
 
 class CommentCreateView(generics.CreateAPIView):
     """

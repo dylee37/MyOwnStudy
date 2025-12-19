@@ -79,6 +79,7 @@ export default createStore({
       }
     },
 
+
     // 2. 사용자 맞춤 추천 2권 가져오기 (인증 필요)
     async fetchPersonalizedRecommendations({ commit, state }) {
       if (!state.accessToken) {
@@ -92,8 +93,10 @@ export default createStore({
             'Authorization': `Token ${state.accessToken}`
           }
         }
-        
-        const response = await axios.get(`${API_URL}/v1/user/recommendation/personalized/`, config)
+      }
+
+      try {
+        const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
         commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
       } catch (error) {
         console.error('Error fetching personalized recommendations:', error.response ? error.response.data : error.message)

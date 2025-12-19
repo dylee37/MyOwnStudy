@@ -115,7 +115,7 @@ const store = useStore();
 // ⭐️⭐️ 수정된 currentUserId computed 속성 ⭐️⭐️
 const currentUserId = computed(() => {
   // Vuex Store의 state.userInfo 객체에서 id를 가져오거나, 없으면 null을 반환합니다.
-  // userInfo는 객체이므로?. (옵셔널 체이닝)을 사용하여 안전하게 접근합니다.
+  // userInfo는 객체이므로 (옵셔널 체이닝)을 사용하여 안전하게 접근
   // 만약 백엔드가 'pk' 필드를 사용한다면: store.state.userInfo?.pk
   // 현재는 'id' 필드가 있다고 가정합니다.
   return store.state.userInfo?.id || null;

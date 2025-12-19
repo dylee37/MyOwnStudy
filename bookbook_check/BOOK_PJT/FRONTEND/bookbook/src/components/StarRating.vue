@@ -64,7 +64,7 @@
 import { ref, computed } from 'vue';
 
 const props = defineProps({
-  rating: { // 이제 5점 만점 정수 값(1~5) 또는 소수점 값 (평균)을 받습니다.
+  rating: { //5점 만점 정수 값(1~5) 또는 소수점 값(평균)
     type: Number,
     required: true
   },
@@ -73,13 +73,11 @@ const props = defineProps({
   onRatingChange: { type: Function, default: null }
 });
 
-// 5점 만점 정수 평점을 전달합니다.
+// 5점 만점 평점 전달
 const handleStarClick = (index) => {
   if (props.onRatingChange) {
-    // index는 1부터 5까지의 값입니다.
+    // index는 1부터 5까지의 값
     props.onRatingChange(index);
   }
 };
-
-// **주의**: 이제 'normalizedRating'과 'fullStars', 'getStarFillWidth' 등의 복잡한 로직은 모두 제거됩니다.
 </script>

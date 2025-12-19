@@ -36,18 +36,13 @@
           {{ isLoggedIn ? `${currentUser.name}님을 위한 AI 맞춤 추천 도서` : '추천 도서' }}
         </h2>
         
-        <div v-if="isLoggedIn && personalizedRecommendations.length" class="grid grid-cols-2 gap-4">
+        <div v-if="personalizedRecommendations.length" class="grid grid-cols-2 gap-4">
           <BookCard v-for="rec in personalizedRecommendations" :key="rec.book.id" :book="rec.book"
             @click="$emit('bookClick', rec.book)" />
         </div>
-
-        <div v-else-if="randomBestsellers.length" class="grid grid-cols-2 gap-4">
-          <BookCard v-for="book in randomBestsellers" :key="book.id" :book="book" 
-            @click="$emit('bookClick', book)" />
-        </div>
         
-        <div v-else-if="!isLoggedIn">
-          <p class="text-sm text-gray-500">로그인하시면 맞춤 추천 도서를 받아보실 수 있습니다. (현재는 랜덤 베스트셀러 목록으로 대체됩니다.)</p>
+        <div v-else>
+          <p class="text-sm text-gray-500">추천 도서를 불러오는 중이거나, 추천할 도서가 없습니다.</p>
         </div>
       </div>
     </div>
@@ -70,43 +65,13 @@ const currentUser = computed(() => store.getters.currentUser || { name: '독자'
 const bestsellers = computed(() => store.state.bestsellers);
 const personalizedRecommendations = computed(() => store.state.personalizedRecommendations);
 
-// ⭐️ 4. 베스트셀러 목록에서 랜덤 2권을 선택하는 computed 속성 추가 ⭐️
-const randomBestsellers = computed(() => {
-  const books = bestsellers.value;
-  if (!books || books.length < 2) {
-    return [];
-  }
-
-  // 20권 중 임의의 2개 인덱스를 선택합니다. (중복 방지)
-  const availableIndices = Array.from({ length: books.length }, (_, i) => i);
-  let randomIndex1 = Math.floor(Math.random() * availableIndices.length);
-  const selectedIndex1 = availableIndices[randomIndex1];
-  
-  // 첫 번째 인덱스 제거
-  availableIndices.splice(randomIndex1, 1);
-  
-  let randomIndex2 = Math.floor(Math.random() * availableIndices.length);
-  const selectedIndex2 = availableIndices[randomIndex2];
-  
-  // 선택된 실제 도서 객체를 반환
-  return [books[selectedIndex1], books[selectedIndex2]].filter(book => book);
-});
-
-
-
 // 3. Life Cycle Hooks에서 Action 호출
 const fetchBestsellers = () => store.dispatch('fetchBestsellers');
 const fetchPersonalizedRecommendations = () => store.dispatch('fetchPersonalizedRecommendations');
 
-
-
 onMounted(() => {
-  // 1. 베스트셀러 목록은 무조건 로드
+  // 베스트셀러와 추천 도서를 모두 로드
   fetchBestsellers();
-  
-  // 2. 로그인 상태일 경우에만 맞춤 추천 로드
-  if (isLoggedIn.value) {
-    fetchPersonalizedRecommendations();
-  }
+  fetchPersonalizedRecommendations();
 });
 </script>
