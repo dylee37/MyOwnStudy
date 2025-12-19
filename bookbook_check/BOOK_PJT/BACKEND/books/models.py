@@ -78,6 +78,7 @@ class Comment(models.Model):
     content = models.TextField()
     rating = models.IntegerField(default=5) # 평점 (1~5점)
     is_voice = models.BooleanField(default=False) # 음성 댓글 여부
+    voice_choice = models.CharField(max_length=50, default='alloy') # 사용자 음성 선택
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

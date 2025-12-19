@@ -271,7 +271,14 @@ class CommentCreateView(generics.CreateAPIView):
     def perform_create(self, serializer):
         book_id = self.kwargs.get('book_pk') # URLconf에서 book_pk를 사용하도록 변경 가정
         book = get_object_or_404(Book, pk=book_id)
-        serializer.save(user=self.request.user, book=book)
+        # serializer.save(user=self.request.user, book=book)
+        user_voice = self.request.user.selected_voice
+        
+        serializer.save(
+            user=self.request.user, 
+            book=book, 
+            voice_choice=user_voice  # 댓글 객체에 목소리 고정 저장
+        )
 
 
 # ⭐️⭐️ [최종 수정] 댓글 삭제 View: 'book_pk'와 'pk' 충돌 해결 ⭐️⭐️

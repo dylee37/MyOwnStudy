@@ -161,7 +161,7 @@ function calculateLocalAverage(comments) {
 }
 
 
-const handleSubmitComment = async ({ text, isVoice, rating }) => {
+const handleSubmitComment = async ({ text, isVoice, rating, voice_choice }) => {
   if (!selectedBook.value) return; 
 
   const token = localStorage.getItem('authToken');
@@ -177,7 +177,8 @@ const handleSubmitComment = async ({ text, isVoice, rating }) => {
   const commentData = {
     content: text,
     rating: ratingForDB,
-    is_voice: isVoice, 
+    is_voice: isVoice,
+    voice_choice: voice_choice,
   };
 
   try {

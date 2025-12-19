@@ -17,7 +17,7 @@ class CommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
         # rating 필드는 이제 5점 만점 정수/소수점을 저장합니다.
-        fields = ['id', 'user_id', 'user_name', 'content', 'rating', 'is_voice', 'created_at']
+        fields = ['id', 'user_id', 'user_name', 'content', 'rating', 'is_voice', 'created_at', 'voice_choice']
         read_only_fields = ['user_id', 'user_name', 'created_at', 'id']
 
 

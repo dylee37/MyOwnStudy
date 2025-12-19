@@ -16,7 +16,7 @@ export default createStore({
     accessToken: localStorage.getItem('authToken') || null,
     userInfo: JSON.parse(localStorage.getItem('user_info')) || null, // 사용자 정보
     // ⭐️ 3. 사용자 선택 TTS 목소리 ⭐️
-    selectedVoice: localStorage.getItem('selected_voice') || 'voice1',
+    selectedVoice: localStorage.getItem('selected_voice') || 'alloy',
   },
   
   getters: {
@@ -54,7 +54,7 @@ export default createStore({
     LOGOUT(state) {
       state.accessToken = null
       state.userInfo = null
-      state.selectedVoice = 'voice1' // ⭐️ 로그아웃 시 기본값으로 ⭐️
+      state.selectedVoice = 'alloy' // ⭐️ 로그아웃 시 기본값으로 ⭐️
       localStorage.removeItem('authToken')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user_info')

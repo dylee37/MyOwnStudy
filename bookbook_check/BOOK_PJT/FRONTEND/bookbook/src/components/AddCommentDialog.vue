@@ -113,6 +113,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useStore } from 'vuex';
 import StarRating from './StarRating.vue';
 
 // ⭐️⭐️ Prop 정의 (필수) ⭐️⭐️
@@ -125,6 +126,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['close', 'submit']);
+const store = useStore();
 
 const commentType = ref('text');
 const commentText = ref('');
@@ -212,7 +214,8 @@ const handleSubmit = () => {
   emit('submit', {
     text: commentText.value,
     isVoice: commentType.value === 'voice',
-    rating: selectedRating.value
+    rating: selectedRating.value,
+    voice_choice: store.getters.selectedVoice
   });
 
   // Reset

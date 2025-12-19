@@ -169,7 +169,7 @@ const readComment = async (text) => {
       },
       body: JSON.stringify({
         text: text,
-        voice: selectedVoice.value // store에서 가져온 voice1, voice2 등
+        voice: props.comment.voice_choice || 'voice1' // props에서 직접 음성 정보 사용
       })
     });
 
