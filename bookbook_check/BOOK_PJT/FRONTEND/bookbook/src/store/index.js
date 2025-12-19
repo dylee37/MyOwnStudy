@@ -93,11 +93,9 @@ export default createStore({
             'Authorization': `Token ${state.accessToken}`
           }
         }
-      }
 
-      try {
-        const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
-        commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
+      const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
+      commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
       } catch (error) {
         console.error('Error fetching personalized recommendations:', error.response ? error.response.data : error.message)
         if (error.response && error.response.status === 401) {
