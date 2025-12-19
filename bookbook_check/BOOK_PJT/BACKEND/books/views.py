@@ -181,7 +181,8 @@ class RecommendationView(APIView):
                 - 최근 관심 책: {user_info['favorite_book']}
 
                 [엄격한 추천 규칙]
-                1. 반드시 후보 목록 중 장르가 '{user_info['preferred_category']}'와 일치하는 책에서 추세요.
+
+                1. 반드시 후보 목록 중 장르가 '{user_info['preferred_category']}'와 일치하는 책에서 추천해주세요.
                 2. 만약 후보 중 해당 장르가 부족하다면, 그나마 가장 성격이 유사한 책을 고르되 'reason'에 그 이유를 명확히 설명하세요.
                 3. '{user_info['preferred_category']}' 장르가 목록에 있음에도 다른 장르(예: 소설 등)를 추천하는 것은 금지합니다.
                 4. 응답은 반드시 아래 JSON 형식을 지키고, 'reason'은 {user_info['name']}님에게 직접 말하듯 친절하게 작성하세요.
