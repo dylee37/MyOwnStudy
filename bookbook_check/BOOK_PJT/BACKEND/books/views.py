@@ -172,28 +172,26 @@ class RecommendationView(APIView):
 
             # LLM 프롬프트 구성
             prompt = f"""
-            당신은 사용자의 취향에 딱 맞는 책을 기가 막히게 찾아주는 전문 큐레이터입니다.
-            아래 사용자 프로필을 보고, 좋아할 만한 **책 2권**을 추천해주세요.
-            
-            # 사용자 프로필
-            - 이름: {user_info['name']}
-            - 선호 카테고리: {user_info['preferred_category']}
-            - 최근 관심 책: {user_info['favorite_book']}
+                당신은 사용자의 취향을 완벽하게 분석하는 독서 전문가입니다.
+                이번 추천의 최우선 목표는 사용자의 '선호 장르'와 일치하는 책을 찾는 것입니다.
 
-            # 추천 규칙
-            1. 응답은 'recommendations' 키를 가진 JSON 객체여야 합니다.
-            2. 각 추천은 'book_id'(정수)와 'reason'(추천 이유)을 포함해야 합니다.
-            3. 추천 이유는 사용자의 프로필(이름, 선호 카테고리, 관심 책)을 근거로 개인화된 메시지를 작성해야 합니다.
-            4. 시스템에 등록된 책 중에서 추천해야 합니다.
-            
-            응답 예시:
-            {{
-                "recommendations": [
-                    {{"book_id": 123, "reason": "{user_info['name']}님, {user_info['preferred_category']} 분야를 좋아하셔서 이 책을 추천해요."}},
-                    {{"book_id": 456, "reason": "'{user_info['favorite_book']}'을 재미있게 읽으셨다면, 비슷한 분위기의 이 책도 분명 마음에 드실 거예요."}}
-                ]
-            }}
-            """
+                [사용자 프로필]
+                - 성함: {user_info['name']}
+                - 선호 장르(최우선): {user_info['preferred_category']}
+                - 최근 관심 책: {user_info['favorite_book']}
+
+                [엄격한 추천 규칙]
+                1. 반드시 후보 목록 중 장르가 '{user_info['preferred_category']}'와 일치하는 책에서 추천해주세요.
+                2. 만약 후보 중 해당 장르가 부족하다면, 그나마 가장 성격이 유사한 책을 고르되 'reason'에 그 이유를 명확히 설명하세요.
+                3. '{user_info['preferred_category']}' 장르가 목록에 있음에도 다른 장르(예: 소설 등)를 추천하는 것은 금지합니다.
+                4. 응답은 반드시 아래 JSON 형식을 지키고, 'reason'은 {user_info['name']}님에게 직접 말하듯 친절하게 작성하세요.
+                {{
+                    "recommendations": [
+                        {{"book_id": ID, "reason": "추천사"}},
+                        ...
+                    ]
+                }}
+                """
 
             # LLM 호출 및 결과 처리
             llm_response_json = get_llm_recommendation(prompt)
