@@ -82,25 +82,25 @@ export default createStore({
 
     // 2. 사용자 맞춤 추천 2권 가져오기 (인증 필요)
     async fetchPersonalizedRecommendations({ commit, state }) {
-      if (!state.accessToken) {
-        commit('SET_PERSONALIZED_RECOMMENDATIONS', [])
-        return
-      }
-
       try {
-        const config = {
-          headers: {
+        const config = {}
+        
+        // 토큰이 있을 때만 헤더에 추가 (로그인 상태인 경우)
+        if (state.accessToken) {
+          config.headers = {
             'Authorization': `Token ${state.accessToken}`
           }
         }
 
-      const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
-      commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
+        // 이제 토큰 유무와 상관없이 서버에 요청을 보냅니다.
+        // 백엔드 RecommendationView의 if request.user.is_authenticated 로직이 나머지를 처리합니다.
+        const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
+        commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
+
       } catch (error) {
-        console.error('Error fetching personalized recommendations:', error.response ? error.response.data : error.message)
+        console.error('Error fetching recommendations:', error)
         if (error.response && error.response.status === 401) {
-            commit('LOGOUT') 
-            alert('인증이 만료되었습니다. 다시 로그인해주세요.')
+          commit('LOGOUT')
         }
       }
     },

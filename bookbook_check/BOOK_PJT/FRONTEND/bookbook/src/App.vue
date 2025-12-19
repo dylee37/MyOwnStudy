@@ -34,7 +34,7 @@
       <BottomNavigation :activeTab="activeTab" @tabChange="activeTab = $event" />
       <SearchDialog
         :isOpen="isSearchOpen"
-        :books="mockBooks"
+        :books="books || []"
         @close="isSearchOpen = false"
         @bookClick="handleBookClick"
       />
