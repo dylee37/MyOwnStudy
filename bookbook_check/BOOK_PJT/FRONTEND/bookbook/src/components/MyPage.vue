@@ -79,7 +79,7 @@
             <span class="text-[#333333]">내 목소리 (TTS)</span>
           </div>
           <span class="text-[#666666]" style="font-size: 0.875rem">
-            {{ selectedVoice }}
+            {{ selectedVoiceName }}
           </span>
         </button>
 
@@ -87,10 +87,10 @@
           <button
             v-for="voice in voiceOptions"
             :key="voice.id"
-            @click="handleVoiceChange(voice.name)"
+            @click="handleVoiceChange(voice.id)"
             :class="[
               'w-full p-3 rounded-lg border transition-colors text-left',
-              selectedVoice === voice.name
+              selectedVoice === voice.id
                 ? 'border-[#f4f2e5] bg-[#f4f2e5]'
                 : 'border-[#E0E0E0] bg-white hover:bg-[#FAFAFA]'
             ]"
@@ -103,7 +103,7 @@
                 </div>
               </div>
               <div
-                v-if="selectedVoice === voice.name"
+                v-if="selectedVoice === voice.id"
                 class="w-5 h-5 rounded-full bg-[#333333] flex items-center justify-center"
               >
                 <div class="w-2 h-2 rounded-full bg-white" />
@@ -175,41 +175,63 @@
   </div>
 </template>
 
+
 <script setup>
-import { ref, nextTick, watch } from 'vue';
+import { ref, nextTick, watch, computed } from 'vue';
+import { useStore } from 'vuex';
 
 const props = defineProps({
   userName: {
     type: String,
     required: true
-  }
+  },
+  profileData: {
+    type: Object,
+    default: null,
+  },
 });
 
 const emit = defineEmits(['back', 'logout', 'deleteAccount', 'updateProfile']);
 
-const selectedVoice = ref('여성1');
+const store = useStore();
+const selectedVoice = computed(() => store.getters.selectedVoice);
+
 const showVoiceSettings = ref(false);
 const isEditingName = ref(false);
 const newName = ref(props.userName);
 const showDeleteConfirm = ref(false);
 const nameInput = ref(null);
 
+watch(
+  () => props.profileData,
+  (newProfile) => {
+    if (newProfile && newProfile.nickname) {
+      newName.value = newProfile.nickname;
+    }
+  },
+  { immediate: true, deep: true }
+);
+
 const voiceOptions = [
-  { id: 'female1', name: '여성1', description: '밝고 명랑한 톤' },
-  { id: 'female2', name: '여성2', description: '차분하고 부드러운 톤' },
-  { id: 'male1', name: '남성1', description: '깊고 안정적인 톤' },
-  { id: 'male2', name: '남성2', description: '경쾌하고 활기찬 톤' }
+  { id: 'voice1', name: '목소리 1 (여성, 차분한)' },
+  { id: 'voice2', name: '목소리 2 (남성, 활기찬)' },
+  { id: 'voice3', name: '목소리 3 (여성, 밝은)' },
+  { id: 'voice4', name: '목소리 4 (남성, 따뜻한)' },
 ];
 
-// ⭐️ Prop이 변경될 때 newName도 갱신되도록 watch 추가 (필수)
-watch(() => props.userName, (newVal) => {
-    newName.value = newVal;
+const selectedVoiceName = computed(() => {
+  const voice = voiceOptions.find(v => v.id === selectedVoice.value);
+  return voice ? voice.name : '';
 });
 
-const handleVoiceChange = (voiceName) => {
-  selectedVoice.value = voiceName;
-  alert(`음성이 "${voiceName}"(으)로 변경되었습니다.`);
-// ⭐️ TODO: 여기에 실제 TTS 설정 업데이트 로직을 추가해야 합니다.
+const handleVoiceChange = (voiceId) => {
+  if (voiceId !== selectedVoice.value) {
+    // 1. API 업데이트를 위해 부모에게 이벤트 전달
+    emit("updateProfile", { selected_voice: voiceId });
+    // 2. UI 즉각적인 반응을 위해 스토어 상태 변경
+    store.commit('SET_SELECTED_VOICE', voiceId);
+  }
+  showVoiceSettings.value = false;
 };
 
 const startEdit = () => {
@@ -220,15 +242,21 @@ const startEdit = () => {
 };
 
 const cancelEdit = () => {
-  newName.value = props.userName;
+  if (props.profileData) {
+    newName.value = props.profileData.nickname || props.userName;
+  } else {
+    newName.value = props.userName;
+  }
   isEditingName.value = false;
 };
 
-const handleNameUpdate = () => {
+const handleNameUpdate = async () => {
   if (newName.value.trim() && newName.value !== props.userName) {
-    emit('updateProfile', newName.value.trim());
-    isEditingName.value = false;
-    alert('닉네임이 변경되었습니다.');
+    const success = await emit("updateProfile", { nickname: newName.value.trim() });
+    if (success !== false) {
+      isEditingName.value = false;
+      alert("닉네임이 변경되었습니다.");
+    }
   } else {
     isEditingName.value = false;
   }

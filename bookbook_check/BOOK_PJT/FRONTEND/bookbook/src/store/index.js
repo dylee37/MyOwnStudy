@@ -13,8 +13,10 @@ export default createStore({
     // 2. 맞춤 추천 2권
     personalizedRecommendations: [],
     // 사용자 인증 상태 (토큰 유무로 판단)
-    accessToken: localStorage.getItem('access_token') || null,
+    accessToken: localStorage.getItem('authToken') || null,
     userInfo: JSON.parse(localStorage.getItem('user_info')) || null, // 사용자 정보
+    // ⭐️ 3. 사용자 선택 TTS 목소리 ⭐️
+    selectedVoice: localStorage.getItem('selected_voice') || 'voice1',
   },
   
   getters: {
@@ -22,6 +24,8 @@ export default createStore({
     bestsellers: state => state.bestsellers,
     personalizedRecommendations: state => state.personalizedRecommendations,
     currentUser: state => state.userInfo,
+    // ⭐️ 선택된 목소리 getter 추가 ⭐️
+    selectedVoice: state => state.selectedVoice,
   },
 
   mutations: {
@@ -35,20 +39,32 @@ export default createStore({
     // 인증 상태 관리
     SET_AUTH_TOKENS(state, { access, refresh }) {
       state.accessToken = access
-      localStorage.setItem('access_token', access)
+      localStorage.setItem('authToken', access)
       localStorage.setItem('refresh_token', refresh)
     },
     SET_USER_INFO(state, user) {
       state.userInfo = user
       localStorage.setItem('user_info', JSON.stringify(user))
+      // ⭐️ 사용자 정보 설정 시 목소리 설정도 함께 업데이트 ⭐️
+      if (user && user.selected_voice) {
+        state.selectedVoice = user.selected_voice
+        localStorage.setItem('selected_voice', user.selected_voice)
+      }
     },
     LOGOUT(state) {
       state.accessToken = null
       state.userInfo = null
-      localStorage.removeItem('access_token')
+      state.selectedVoice = 'voice1' // ⭐️ 로그아웃 시 기본값으로 ⭐️
+      localStorage.removeItem('authToken')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user_info')
+      localStorage.removeItem('selected_voice') // ⭐️ 로컬 스토리지에서도 삭제 ⭐️
       state.personalizedRecommendations = []
+    },
+    // ⭐️ 목소리 설정 변경 뮤테이션 ⭐️
+    SET_SELECTED_VOICE(state, voiceId) {
+      state.selectedVoice = voiceId
+      localStorage.setItem('selected_voice', voiceId)
     },
   },
 
@@ -64,8 +80,8 @@ export default createStore({
     },
 
     // 2. 사용자 맞춤 추천 2권 가져오기 (인증 필요)
-    async fetchPersonalizedRecommendations({ commit, getters }) {
-      if (!getters.isLoggedIn) {
+    async fetchPersonalizedRecommendations({ commit, state }) {
+      if (!state.accessToken) {
         commit('SET_PERSONALIZED_RECOMMENDATIONS', [])
         return
       }
@@ -73,14 +89,14 @@ export default createStore({
       try {
         const config = {
           headers: {
-            'Authorization': `Bearer ${getters.accessToken}`
+            'Authorization': `Token ${state.accessToken}`
           }
         }
         
         const response = await axios.get(`${API_URL}/v1/user/recommendation/personalized/`, config)
         commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
       } catch (error) {
-        console.error('Error fetching personalized recommendations:', error.response.data)
+        console.error('Error fetching personalized recommendations:', error.response ? error.response.data : error.message)
         if (error.response && error.response.status === 401) {
             commit('LOGOUT') 
             alert('인증이 만료되었습니다. 다시 로그인해주세요.')

@@ -139,14 +139,19 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
+# https://docs.djangoproject.com/en/5.0/howto/static-files/
 
 STATIC_URL = 'static/'
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ⭐️ OpenAI API Key for TTS ⭐️
+# ❗️❗️ 나중에 실제 발급받은 키로 교체해야 합니다. ❗️❗️
+OPENAI_API_KEY = 'YOUR_OPENAI_API_KEY_HERE'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
