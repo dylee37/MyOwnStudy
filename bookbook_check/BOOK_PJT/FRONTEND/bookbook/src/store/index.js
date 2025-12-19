@@ -63,24 +63,22 @@ export default createStore({
       }
     },
 
-    // 2. 사용자 맞춤 추천 2권 가져오기 (인증 필요)
+    // 2. 사용자 맞춤 추천 2권 가져오기 (공통)
     async fetchPersonalizedRecommendations({ commit, getters }) {
-      if (!getters.isLoggedIn) {
-        commit('SET_PERSONALIZED_RECOMMENDATIONS', [])
-        return
-      }
-
-      try {
-        const config = {
+      let config = {}
+      if (getters.isLoggedIn) {
+        config = {
           headers: {
             'Authorization': `Bearer ${getters.accessToken}`
           }
         }
-        
-        const response = await axios.get(`${API_URL}/v1/user/recommendation/personalized/`, config)
+      }
+
+      try {
+        const response = await axios.get(`${API_URL}/books/main-recommendations/`, config)
         commit('SET_PERSONALIZED_RECOMMENDATIONS', response.data)
       } catch (error) {
-        console.error('Error fetching personalized recommendations:', error.response.data)
+        console.error('Error fetching personalized recommendations:', error.response ? error.response.data : error)
         if (error.response && error.response.status === 401) {
             commit('LOGOUT') 
             alert('인증이 만료되었습니다. 다시 로그인해주세요.')

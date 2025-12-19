@@ -208,6 +208,7 @@ const handleSubmitComment = async ({ text, isVoice, rating }) => {
     }
 
     showAddCommentDialog.value = false;
+    fetchLibraryBooks();
 
   } catch (error) {
     console.error('댓글 등록 실패:', error.response?.data || error.message);

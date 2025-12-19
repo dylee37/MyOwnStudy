@@ -79,3 +79,5 @@ class CustomUserSerializer(serializers.ModelSerializer):
         model = CustomUser
         # ⭐️ 프론트엔드에 필요한 필드만 포함
         fields = ('id', 'email', 'name', 'selected_voice', 'selected_category')
+
+

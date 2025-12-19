@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (BookListView, BookDetailView, RecommendedBooksView, 
-                    BestsellerListView, PersonalizedRecommendationView, CommentCreateView,
+                    BestsellerListView, RecommendationView, CommentCreateView,
                     CommentDestroyView)
 
 urlpatterns = [
@@ -10,5 +10,5 @@ urlpatterns = [
     path('books/recommendations/<int:pk>/', RecommendedBooksView.as_view(), name='book-recommendations'), 
     path('books/<int:book_pk>/comments/<int:pk>/', CommentDestroyView.as_view(), name='book-comment-destroy'),
     path('books/bestsellers/', BestsellerListView.as_view(), name='book-bestsellers'),
-    path('books/personalized-recommendation/', PersonalizedRecommendationView.as_view(), name='personalized-recommendation'),
+    path('books/main-recommendations/', RecommendationView.as_view(), name='main-recommendation'),
 ]
