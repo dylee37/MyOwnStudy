@@ -1,4 +1,5 @@
 from rest_framework import generics, status, permissions
+from django.conf import settings
 from .models import Book, Comment
 from .serializers import BookListSerializer, BookDetailSerializer
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -10,7 +11,10 @@ from .utils import get_embedding, calculate_cosine_similarity, get_llm_recommend
 import numpy as np
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
+from django.http import HttpResponse
 import json
+from openai import OpenAI
+import requests
 
 # 책 목록 조회 및 생성 (GET / POST)
 class BookListView(generics.ListCreateAPIView):
@@ -103,74 +107,6 @@ class BestsellerListView(APIView):
 
 User = get_user_model() # Django 기본 User 모델을 가져옵니다.
 
-class PersonalizedRecommendationView(APIView):
-    """
-    로그인한 사용자 정보를 기반으로 LLM에게 2권의 맞춤형 도서를 추천받습니다.
-    URL: GET /api/books/personalized-recommendation/
-    """
-    # ⭐️ 인증된 사용자만 접근 가능하도록 설정 ⭐️
-    permission_classes = [IsAuthenticated] 
-
-    def get(self, request, format=None):
-        user = request.user
-        
-        # 1. 사용자 데이터 준비 (⭐️ 실제 User 모델에 따라 필드명 수정 필요 ⭐️)
-        user_info = {
-            "username": user.username,
-            # 현재 기본 User 모델에는 선호 장르 같은 필드가 없으므로, 임시 데이터를 사용합니다.
-            # 실제 구현 시, User 모델을 확장하여 '선호 장르' 같은 필드를 추가해야 합니다.
-            "preferred_category": "소설/시/희곡", # 임시 값
-            "activity_level": "높음", # 임시 값
-        }
-        
-        # 2. LLM에게 전달할 프롬프트 구성 (DB 전체 책 데이터는 너무 크므로, 프롬프트에서 요청)
-        prompt = f"""
-        당신은 사용자의 취향에 맞는 책을 찾아주는 전문 큐레이터입니다.
-        아래는 현재 로그인한 사용자의 프로필 정보입니다.
-        
-        사용자 프로필: {json.dumps(user_info, ensure_ascii=False)}
-        
-        사용자의 취향과 선호도를 고려하여, 사용자가 가장 좋아할 만한 **2권의 도서 ID와 해당 책을 추천하는 구체적인 이유**를 **JSON 리스트** 형태로 추천해 주세요.
-        
-        규칙:
-        1. 응답은 오직 'recommendations'라는 키를 가진 JSON 객체 형태여야 합니다.
-        2. 리스트 요소는 'book_id'(정수), 'reason'(문자열) 필드를 포함해야 합니다.
-        3. 추천 책은 시스템에 등록된 책이어야 합니다 (ID 유효성).
-        
-        응답 예시:
-        {{"recommendations": [ {{"book_id": 123, "reason": "OO님의 취향을 고려했을 때..."}}, ... ]}}
-        """
-        
-        # 3. LLM API 호출
-        llm_response_json = get_llm_recommendation(prompt)
-        
-        if not llm_response_json:
-            return Response({"detail": "맞춤 추천 생성에 실패했습니다."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            response_data = json.loads(llm_response_json)
-            recommendations = response_data.get('recommendations', [])
-            
-            # 4. 추천 받은 책 ID를 사용하여 DB에서 책 정보 조회
-            book_ids = [item['book_id'] for item in recommendations if 'book_id' in item]
-            recommended_books_map = {book.id: book for book in Book.objects.filter(id__in=book_ids)}
-            
-            # 5. 응답 데이터 구조화
-            final_recommendations = []
-            for item in recommendations:
-                book = recommended_books_map.get(item.get('book_id'))
-                if book:
-                    # BookListSerializer를 사용하여 책 데이터 직렬화
-                    book_data = BookListSerializer(book).data
-                    final_recommendations.append({
-                        "book": book_data,
-                        "reason": item.get('reason', "LLM 추천 이유 없음")
-                    })
-            
-            return Response(final_recommendations, status=status.HTTP_200_OK)
-        
-        except (json.JSONDecodeError, ValueError) as e:
-            return Response({"detail": f"LLM 응답을 처리하는 데 실패했습니다: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
 
 class CommentCreateView(generics.CreateAPIView):
@@ -219,3 +155,58 @@ class CommentDestroyView(generics.DestroyAPIView):
             raise PermissionDenied("자신이 작성한 댓글만 삭제할 수 있습니다.")
             
         return comment
+    
+
+class TextToSpeechView(APIView):
+    """
+    텍스트와 선택된 목소리를 받아 OpenAI TTS API로 음성을 생성합니다.
+    URL: POST /api/books/tts/
+    """
+    permission_classes = [permissions.AllowAny]
+    def post(self, request):
+        text = request.data.get('text')
+        voice_id = request.data.get('voice', 'voice1')
+        
+        # 프론트엔드 voice ID를 OpenAI 실제 목소리 이름으로 매핑
+        voice_map = {
+            'voice1': 'alloy',
+            'voice2': 'echo',
+            'voice3': 'shimmer',
+            'voice4': 'onyx'
+        }
+        selected_voice = voice_map.get(voice_id, 'alloy')
+
+        if not text:
+            return Response({"detail": "텍스트가 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            print(f"DEBUG: GMS_KEY is {settings.GMS_KEY[:5]}...")
+            # settings에 정의된 GMS_KEY 사용
+            gms_url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/speech"
+            
+            headers = {
+                "Authorization": f"Bearer {settings.GMS_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": "gpt-4o-mini-tts",
+                "input": text,
+                "voice": selected_voice,
+                "response_format": "mp3"
+            }
+
+            # ⭐️ 라이브러리 대신 직접 POST 요청 ⭐️
+            response = requests.post(gms_url, headers=headers, json=payload)
+
+            if response.status_code == 200:
+                # 성공 시 오디오 파일 반환
+                return HttpResponse(response.content, content_type="audio/mpeg")
+            else:
+                # GMS 서버에서 에러가 온 경우
+                print(f"GMS ERROR: {response.status_code} - {response.text}")
+                return Response(response.json(), status=response.status_code)
+            
+        except Exception as e:
+            print(f"SERVER ERROR: {str(e)}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

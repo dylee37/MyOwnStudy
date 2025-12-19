@@ -175,8 +175,10 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, nextTick, watch, computed } from 'vue';
+import { useStore } from 'vuex';
 
 const props = defineProps({
   userName: {
@@ -191,31 +193,18 @@ const props = defineProps({
 
 const emit = defineEmits(['back', 'logout', 'deleteAccount', 'updateProfile']);
 
-const selectedVoice = ref(props.profileData?.selected_voice || "voice1");
+const store = useStore();
+const selectedVoice = computed(() => store.getters.selectedVoice);
+
 const showVoiceSettings = ref(false);
 const isEditingName = ref(false);
 const newName = ref(props.userName);
 const showDeleteConfirm = ref(false);
 const nameInput = ref(null);
 
-// const voiceOptions = [
-//   { id: 'female1', name: '여성1', description: '밝고 명랑한 톤' },
-//   { id: 'female2', name: '여성2', description: '차분하고 부드러운 톤' },
-//   { id: 'male1', name: '남성1', description: '깊고 안정적인 톤' },
-//   { id: 'male2', name: '남성2', description: '경쾌하고 활기찬 톤' }
-// ];
-
-// // ⭐️ Prop이 변경될 때 newName도 갱신되도록 watch 추가 (필수)
-// watch(() => props.userName, (newVal) => {
-//     newName.value = newVal;
-// });
-
 watch(
   () => props.profileData,
   (newProfile) => {
-    if (newProfile && newProfile.selected_voice) {
-      selectedVoice.value = newProfile.selected_voice;
-    }
     if (newProfile && newProfile.nickname) {
       newName.value = newProfile.nickname;
     }
@@ -230,12 +219,6 @@ const voiceOptions = [
   { id: 'voice4', name: '목소리 4 (남성, 따뜻한)' },
 ];
 
-// const handleVoiceChange = (voiceName) => {
-//   selectedVoice.value = voiceName;
-//   alert(`음성이 "${voiceName}"(으)로 변경되었습니다.`);
-// // ⭐️ TODO: 여기에 실제 TTS 설정 업데이트 로직을 추가해야 합니다.
-// };
-
 const selectedVoiceName = computed(() => {
   const voice = voiceOptions.find(v => v.id === selectedVoice.value);
   return voice ? voice.name : '';
@@ -243,7 +226,10 @@ const selectedVoiceName = computed(() => {
 
 const handleVoiceChange = (voiceId) => {
   if (voiceId !== selectedVoice.value) {
+    // 1. API 업데이트를 위해 부모에게 이벤트 전달
     emit("updateProfile", { selected_voice: voiceId });
+    // 2. UI 즉각적인 반응을 위해 스토어 상태 변경
+    store.commit('SET_SELECTED_VOICE', voiceId);
   }
   showVoiceSettings.value = false;
 };
@@ -255,11 +241,6 @@ const startEdit = () => {
   });
 };
 
-// const cancelEdit = () => {
-//   newName.value = props.userName;
-//   isEditingName.value = false;
-// };
-
 const cancelEdit = () => {
   if (props.profileData) {
     newName.value = props.profileData.nickname || props.userName;
@@ -268,16 +249,6 @@ const cancelEdit = () => {
   }
   isEditingName.value = false;
 };
-
-// const handleNameUpdate = () => {
-//   if (newName.value.trim() && newName.value !== props.userName) {
-//     emit('updateProfile', newName.value.trim());
-//     isEditingName.value = false;
-//     alert('닉네임이 변경되었습니다.');
-//   } else {
-//     isEditingName.value = false;
-//   }
-// };
 
 const handleNameUpdate = async () => {
   if (newName.value.trim() && newName.value !== props.userName) {

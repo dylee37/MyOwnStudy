@@ -46,7 +46,7 @@
         </div>
 
         <button v-if="comment.content && !comment.is_voice"
-          @click="readComment(comment.content, comment.user_voice || 'voice1')"
+          @click="readComment(comment.content)"
           class="p-2 text-[#999999] hover:text-[#333333] transition-colors self-end" :class="isMine ? 'mr-1' : 'ml-1'">
 
           <svg v-if="!isTTSPlaying" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
@@ -80,16 +80,15 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import StarRating from './StarRating.vue';
-import { useStore } from 'vuex'
+import { useStore } from 'vuex';
 
 const props = defineProps({
   comment: {
     type: Object,
     required: true
   },
-  // ⭐️ [핵심 수정] app.vue에서 전달받는 현재 사용자 ID
   currentUserId: {
     type: [Number, String],
     required: false,
@@ -97,44 +96,46 @@ const props = defineProps({
   }
 });
 
-// emits 정의 (삭제 이벤트)
 const emit = defineEmits(['deleteComment']); 
 
 const store = useStore();
-// Vuex store에서 사용자 ID 가져오기 (prop이 없을 경우 대비)
-const currentUserIdFromStore = computed(() => store.state.user?.id || store.state.user?.userData?.id);
+const currentUserIdFromStore = computed(() => store.getters.currentUser?.id);
+const selectedVoice = computed(() => store.getters.selectedVoice);
 
-
-// ⭐️⭐️ [핵심 수정] isMyComment 구현: 현재 로그인 사용자의 댓글인지 확인 ⭐️⭐️
 const isMyComment = computed(() => {
-    // 1. prop으로 받은 ID 사용 (app.vue에서 userData.id가 전달되는 경우)
     const currentId = props.currentUserId ? parseInt(props.currentUserId, 10) : null;
     if (currentId && props.comment.user_id === currentId) {
       return true;
     }
-    
-    // 2. prop이 없을 경우 store의 ID 사용 (fallback)
     const loggedInId = parseInt(currentUserIdFromStore.value, 10);
     return props.comment.user_id === loggedInId && loggedInId > 0;
 });
 
-// ⭐️⭐️ [핵심 수정] 삭제 버튼 클릭 핸들러: 상위 컴포넌트에 이벤트 발생 ⭐️⭐️
 const handleDeleteClick = () => {
     if (confirm('정말로 이 댓글을 삭제하시겠습니까?')) {
-        // 댓글 ID를 전달하여 상위 컴포넌트에 삭제를 요청합니다.
         emit('deleteComment', props.comment.id);
     }
 };
 
-// 댓글 위치 결정 (기존 로직 유지)
 const isMine = computed(() => isMyComment.value); 
 
-// TTS 관련 상태 및 객체
 const synth = window.speechSynthesis;
 const isTTSPlaying = ref(false);
+let audioPlayer = null;
+const koreanVoices = ref([]);
 
+const loadVoices = () => {
+  const voices = synth.getVoices();
+  koreanVoices.value = voices.filter(voice => voice.lang.startsWith('ko'));
+};
 
-// 시간 포맷팅 함수 (props.comment.created_at을 사용)
+onMounted(() => {
+  loadVoices();
+  if (synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = loadVoices;
+  }
+});
+
 const formatTime = (isoString) => {
   if (!isoString) return '';
   const date = new Date(isoString);
@@ -150,45 +151,95 @@ const formatTime = (isoString) => {
     return `${month}.${day}`;
   }
 };
-
-
-// TTS 기능 구현 함수 
-const readComment = (text, voiceOption) => {
-  if (!synth) {
-    alert("죄송합니다. 이 브라우저는 음성 합성 기능을 지원하지 않습니다.");
-    return;
-  }
-
-  if (synth.speaking && isTTSPlaying.value) {
-    synth.cancel();
+const readComment = async (text) => {
+  if (isTTSPlaying.value && audioPlayer) {
+    audioPlayer.pause();
     isTTSPlaying.value = false;
     return;
   }
+  try {
+    isTTSPlaying.value = true;
+    // 백엔드 API 호출
+    const response = await fetch('http://localhost:8000/api/books/tts/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // 필요한 경우 인증 토큰 추가
+        //'Authorization': `Bearer ${store.state.accessToken}` 
+      },
+      body: JSON.stringify({
+        text: text,
+        voice: selectedVoice.value // store에서 가져온 voice1, voice2 등
+      })
+    });
 
-  synth.cancel();
+    if (!response.ok) throw new Error("TTS 생성 실패");
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  isTTSPlaying.value = true;
+    // 바이너리 데이터를 Blob으로 변환
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    
+    // 오디오 재생
+    audioPlayer = new Audio(url);
+    audioPlayer.play();
+    
+    audioPlayer.onended = () => {
+      isTTSPlaying.value = false;
+      window.URL.revokeObjectURL(url); // 메모리 해제
+    };
 
-  utterance.onend = () => {
+  } catch (error) {
+    console.error("TTS 에러:", error);
+    alert("음성 생성 중 오류가 발생했습니다.");
     isTTSPlaying.value = false;
-  };
-  utterance.onpause = () => {
-    isTTSPlaying.value = false;
-  };
-  utterance.onerror = () => {
-    isTTSPlaying.value = false;
-    console.error("TTS 재생 오류 발생");
-  };
-
-  const voices = synth.getVoices();
-  let selectedVoice = voices.find(voice => voice.lang.startsWith('ko'));
-  if (selectedVoice) {
-    utterance.voice = selectedVoice;
   }
-  utterance.rate = 1.0;
-  utterance.pitch = 1.0;
-
-  synth.speak(utterance);
 };
+// const readComment = (text) => {
+//   if (!synth) {
+//     alert("죄송합니다. 이 브라우저는 음성 합성 기능을 지원하지 않습니다.");
+//     return;
+//   }
+
+//   if (synth.speaking && isTTSPlaying.value) {
+//     synth.cancel();
+//     return;
+//   }
+
+//   synth.cancel();
+
+//   const utterance = new SpeechSynthesisUtterance(text);
+//   isTTSPlaying.value = true;
+
+//   utterance.onend = () => isTTSPlaying.value = false;
+//   utterance.onpause = () => isTTSPlaying.value = false;
+//   utterance.onerror = (e) => {
+//     isTTSPlaying.value = false;
+//     console.error("TTS 재생 오류 발생:", e);
+//   };
+
+//   if (koreanVoices.value.length > 0) {
+//     const voiceMap = { 'voice1': 0, 'voice2': 1, 'voice3': 2, 'voice4': 3 };
+//     const selectedIndex = voiceMap[selectedVoice.value] ?? 0;
+    
+//     // 사용 가능한 목소리 개수 내에서 인덱스를 순환시킴
+//     const finalVoiceIndex = selectedIndex % koreanVoices.value.length;
+//     utterance.voice = koreanVoices.value[finalVoiceIndex];
+
+//   } else {
+//     console.warn("사용 가능한 한국어 목소리가 없습니다. 기본 목소리로 재생합니다.");
+//   }
+  
+//   utterance.rate = 1.0;
+//   utterance.pitch = 1.0;
+
+//   synth.speak(utterance);
+// };
+
+// TTS 재생 중 컴포넌트가 언마운트될 때 재생 중지
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  if (synth.speaking) {
+    synth.cancel();
+  }
+});
 </script>

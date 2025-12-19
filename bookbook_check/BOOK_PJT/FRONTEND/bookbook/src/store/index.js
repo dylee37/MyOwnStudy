@@ -15,6 +15,8 @@ export default createStore({
     // 사용자 인증 상태 (토큰 유무로 판단)
     accessToken: localStorage.getItem('authToken') || null,
     userInfo: JSON.parse(localStorage.getItem('user_info')) || null, // 사용자 정보
+    // ⭐️ 3. 사용자 선택 TTS 목소리 ⭐️
+    selectedVoice: localStorage.getItem('selected_voice') || 'voice1',
   },
   
   getters: {
@@ -22,6 +24,8 @@ export default createStore({
     bestsellers: state => state.bestsellers,
     personalizedRecommendations: state => state.personalizedRecommendations,
     currentUser: state => state.userInfo,
+    // ⭐️ 선택된 목소리 getter 추가 ⭐️
+    selectedVoice: state => state.selectedVoice,
   },
 
   mutations: {
@@ -41,14 +45,26 @@ export default createStore({
     SET_USER_INFO(state, user) {
       state.userInfo = user
       localStorage.setItem('user_info', JSON.stringify(user))
+      // ⭐️ 사용자 정보 설정 시 목소리 설정도 함께 업데이트 ⭐️
+      if (user && user.selected_voice) {
+        state.selectedVoice = user.selected_voice
+        localStorage.setItem('selected_voice', user.selected_voice)
+      }
     },
     LOGOUT(state) {
       state.accessToken = null
       state.userInfo = null
+      state.selectedVoice = 'voice1' // ⭐️ 로그아웃 시 기본값으로 ⭐️
       localStorage.removeItem('authToken')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user_info')
+      localStorage.removeItem('selected_voice') // ⭐️ 로컬 스토리지에서도 삭제 ⭐️
       state.personalizedRecommendations = []
+    },
+    // ⭐️ 목소리 설정 변경 뮤테이션 ⭐️
+    SET_SELECTED_VOICE(state, voiceId) {
+      state.selectedVoice = voiceId
+      localStorage.setItem('selected_voice', voiceId)
     },
   },
 
