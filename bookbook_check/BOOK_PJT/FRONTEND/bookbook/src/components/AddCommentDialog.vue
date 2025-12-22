@@ -62,7 +62,7 @@
             음성 녹음
           </label>
           <div class="bg-[#FAFAFA] rounded-lg p-6 flex flex-col items-center">
-            <button @click="toggleRecording" :disabled="isRecording && !sttCompleted" :class="[
+            <button @click="toggleRecording" :class="[
               'w-16 h-16 rounded-full flex items-center justify-center transition-colors mb-3',
               isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-[#f4f2e5] hover:bg-[#e8e6d9]',
               { 'animate-pulse': isRecording }
@@ -115,11 +115,10 @@
 import { ref, computed } from 'vue';
 import { useStore } from 'vuex';
 import StarRating from './StarRating.vue';
+import axios from 'axios';
 
-// ⭐️⭐️ Prop 정의 (필수) ⭐️⭐️
-// ⭐️⭐️ Prop 정의 수정: comment, currentUserId 제거하고, isOpen만 추가 ⭐️⭐️
 const props = defineProps({
-    isOpen: { // 템플릿에서 사용되고 있으므로 추가
+    isOpen: {
         type: Boolean,
         required: true
     }
@@ -133,79 +132,123 @@ const commentText = ref('');
 const selectedRating = ref(5);
 const isRecording = ref(false);
 
-// ⭐️⭐️ 1. 음성 인식(STT) 완료 상태 추가 ⭐️⭐️
 const sttCompleted = ref(false);
-// ⭐️⭐️ 2. 음성 인식 중 에러 상태 추가 (선택적) ⭐️⭐️
 const sttError = ref(false);
+
+// MediaRecorder 관련 refs
+const mediaRecorder = ref(null);
+const audioChunks = ref([]);
 
 const canSubmit = computed(() => {
   if (commentType.value === 'text') {
     return commentText.value.trim().length > 0 && !isRecording.value;
   }
-  // ⭐️⭐️ 음성 모드일 경우: 녹음 중이 아니고, STT가 완료되었으며, 내용이 비어있지 않아야 함 ⭐️⭐️
   if (commentType.value === 'voice') {
     return !isRecording.value && sttCompleted.value && commentText.value.trim().length > 0;
   }
   return false;
 });
 
-
-
-
 const handleRatingChange = (rating) => {
   selectedRating.value = rating;
 };
-const toggleRecording = () => {
-  // 녹음 시작
-  if (!isRecording.value) {
-    // 상태 초기화
-    sttCompleted.value = false;
-    sttError.value = false;
-    commentText.value = ''; // 녹음 시작 시 기존 텍스트 초기화
 
-    isRecording.value = true;
-    console.log("녹음 시작...");
+const startRecording = async () => {
+  if (isRecording.value) return;
 
-    // ⭐️⭐️ 실제 녹음 시작 및 STT API 호출 로직 (가정) ⭐️⭐️
-    // 3초 동안 녹음한다고 가정하고, 3초 후 STT 결과를 얻습니다.
-    setTimeout(() => {
-      stopRecordingAndProcessSTT();
-    }, 3000);
+  sttCompleted.value = false;
+  sttError.value = false;
+  commentText.value = '';
+  audioChunks.value = [];
 
-  } else {
-    // 녹음 중지 (사용자가 수동으로 중지했을 때)
-    console.log("수동 녹음 중지...");
-    stopRecordingAndProcessSTT();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    
+    // 1. Recorder 생성
+    const recorder = new MediaRecorder(stream);
+    mediaRecorder.value = recorder;
+    
+    // 2. 데이터 수집 이벤트
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.value.push(event.data);
+      }
+    };
+
+    // 3. ⭐️ 녹음이 실제로 멈췄을 때 실행될 로직 ⭐️
+    recorder.onstop = async () => {
+      console.log("MediaRecorder가 실제로 멈췄습니다. STT를 시작합니다.");
+      await stopRecordingAndProcessSTT();
+      
+      // 마이크 사용 종료 (브라우저 마이크 아이콘 끄기)
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    // 4. 녹음 시작
+    recorder.start();
+    isRecording.value = true; // 실제 시작 후 상태 변경
+    console.log("녹음 시작됨...");
+  } catch (error) {
+    console.error("마이크 접근 오류:", error);
+    sttError.value = true;
+    commentText.value = "마이크를 사용할 수 없습니다.";
+    isRecording.value = false;
   }
 };
 
+const stopRecording = () => {
+  if (mediaRecorder.value && mediaRecorder.value.state !== 'inactive') {
+    console.log("녹음 중지 요청 중...");
+    mediaRecorder.value.stop(); 
+  } else {
+    console.warn("중지할 녹음 프로세스가 없습니다.");
+    isRecording.value = false;
+  }
+};
 
-const stopRecordingAndProcessSTT = () => {
-  if (!isRecording.value) return; // 이미 중지 상태면 중복 실행 방지
+const toggleRecording = () => {
+  console.log("현재 isRecording 상태:", isRecording.value);
+  if (!isRecording.value) {
+    startRecording();
+  } else {
+    stopRecording();
+  }
+};
 
-  isRecording.value = false;
-  console.log("녹음 종료 및 STT 처리 시작...");
+const stopRecordingAndProcessSTT = async () => {
+  // 녹음 종료 시 UI 상태 업데이트
+  isRecording.value = false; 
 
-  // ⭐️⭐️ STT API 호출 및 결과 처리 로직 (임시 구현) ⭐️⭐️
-  // 실제로는 녹음된 오디오 파일을 서버에 업로드하고, 서버가 STT API를 호출한 뒤 텍스트를 받습니다.
+  if (audioChunks.value.length === 0) {
+    console.warn("녹음된 데이터가 없습니다.");
+    return;
+  }
 
-  // 임시로 성공 시 텍스트 변환
-  const simulatedText = "이번 책은 정말 기대 이상이었어요. 특히 작가의 섬세한 심리 묘사가 인상적이었습니다. 많은 사람들에게 추천하고 싶어요!";
+  console.log("STT 서버 전송 시작...");
+  const audioBlob = new Blob(audioChunks.value, { type: 'audio/webm' });
+  const formData = new FormData();
+  formData.append('audio', audioBlob, 'recording.webm');
 
-  // 변환 성공 가정
-  commentText.value = simulatedText;
-  sttCompleted.value = true;
-  sttError.value = false;
-
-  // 만약 STT 실패 시:
-  // sttError.value = true;
-  // commentText.value = '';
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/api/books/transcribe/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    
+    commentText.value = response.data.text;
+    sttCompleted.value = true;
+    sttError.value = false;
+    console.log("STT 성공:", response.data.text);
+  } catch (error) {
+    console.error("STT API 오류:", error);
+    sttError.value = true;
+    sttCompleted.value = false;
+    commentText.value = "음성 인식에 실패했습니다. 다시 시도해주세요.";
+  }
 };
 
 const handleSubmit = () => {
   if (!canSubmit.value) return;
 
-  // ⭐️⭐️ 음성 모드일 경우, 녹음이 완료되었는지 추가 확인 ⭐️⭐️
   if (commentType.value === 'voice' && !sttCompleted.value) {
     alert('음성 녹음을 먼저 완료해주세요.');
     return;
@@ -220,10 +263,10 @@ const handleSubmit = () => {
 
   // Reset
   commentText.value = '';
-  selectedRating.value = 10;
+  selectedRating.value = 5; // Default to 5
   commentType.value = 'text';
   isRecording.value = false;
-  sttCompleted.value = false; // STT 상태 초기화
+  sttCompleted.value = false;
   sttError.value = false;
 };
 </script>

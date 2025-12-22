@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (BookListView, BookDetailView, RecommendedBooksView, 
                     BestsellerListView, RecommendationView, CommentCreateView,
-                    CommentDestroyView, TextToSpeechView)
+                    CommentDestroyView, TextToSpeechView, SpeechToTextView)
 
 urlpatterns = [
     path('books/', BookListView.as_view(), name='book-list'),
@@ -12,4 +12,5 @@ urlpatterns = [
     path('books/bestsellers/', BestsellerListView.as_view(), name='book-bestsellers'),
     path('books/main-recommendations/', RecommendationView.as_view(), name='main-recommendation'),
     path('books/tts/', TextToSpeechView.as_view(), name='text-to-speech'),
+    path('books/transcribe/', SpeechToTextView.as_view(), name='speech-to-text'),
 ]

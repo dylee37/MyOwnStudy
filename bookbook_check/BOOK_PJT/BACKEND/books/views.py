@@ -359,3 +359,34 @@ class TextToSpeechView(APIView):
         except Exception as e:
             print(f"SERVER ERROR: {str(e)}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SpeechToTextView(APIView):
+    """
+    오디오 파일을 받아 Whisper-1 모델로 텍스트로 변환합니다.
+    URL: POST /api/books/transcribe/
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        if 'audio' not in request.FILES:
+            return Response({"error": "오디오 파일이 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
+
+        audio_file = request.FILES['audio']
+
+        try:
+            client = OpenAI(api_key=settings.GMS_KEY, base_url="https://gms.ssafy.io/gmsapi/api.openai.com/v1")
+            
+            transcription = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=(audio_file.name, audio_file.read(), audio_file.content_type),
+                response_format="json"
+            )
+            
+            transcribed_text = transcription.text
+            
+            return Response({"text": transcribed_text}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"STT ERROR: {str(e)}")
+            return Response({"error": f"음성 변환 중 오류 발생: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

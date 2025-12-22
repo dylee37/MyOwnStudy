@@ -21,34 +21,23 @@
       </div>
 
       <div class="flex items-end" :class="{ 'flex-row-reverse': isMine }">
-
         <div :class="[
-          'rounded-2xl px-4 py-3 max-w-xs',
-          isMine
-            ? 'bg-[#f4f2e5] rounded-br-sm'
-            : 'bg-white border border-[#E0E0E0] rounded-bl-sm'
-        ]">
-
-          <p class="text-[#333333]" style="font-size: 0.875rem" v-if="comment.content">
-            {{ comment.content }}
-          </p>
-
-          <div v-if="comment.is_voice" class="mt-2 flex items-center gap-2">
-            <button class="p-2 text-white bg-red-500 rounded-full hover:bg-red-600 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3 22L21 12L3 2V22Z" />
-              </svg>
-            </button>
-            <span class="text-sm text-[#666666]">
-              음성 댓글 ({{ comment.text ? 'STT 변환 텍스트 포함' : '음성만' }})
-            </span>
+            'rounded-2xl px-4 py-3 max-w-xs',
+            isMine ? 'bg-[#f4f2e5] rounded-br-sm' : 'bg-white border border-[#E0E0E0] rounded-bl-sm'
+          ]">
+            <p class="text-[#333333]" style="font-size: 0.875rem">
+              {{ comment.content || (comment.is_voice ? '음성 메시지' : '내용 없음') }}
+            </p>
           </div>
-        </div>
 
-        <button v-if="comment.content && !comment.is_voice"
+        <button 
           @click="readComment(comment.content)"
-          class="p-2 text-[#999999] hover:text-[#333333] transition-colors self-end" :class="isMine ? 'mr-1' : 'ml-1'">
-
+          class="p-2 transition-colors self-end"
+          :class="[
+            isMine ? 'mr-1' : 'ml-1',
+            comment.is_voice = 'text-[#999999]' 
+          ]"
+        >
           <svg v-if="!isTTSPlaying" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 5L6 9H2v6h4l5 4z" />
