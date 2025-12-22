@@ -100,17 +100,40 @@
         <div class="bg-white rounded-xl p-5 border border-[#E0E0E0]">
           <div class="mb-5">
             <label class="block text-xs text-[#999999] mb-1">인생 도서</label>
-            <p class="text-[#333333] text-sm font-medium">
-              {{ userData?.favorite_book || '아직 등록된 책이 없어요' }}
-            </p>
+            <div v-if="!isEditingBook" @click="isEditingBook = true" class="cursor-pointer group">
+              <p class="text-[#333333] text-sm font-medium">
+                {{ userData?.favorite_book || '아직 등록된 책이 없어요' }}
+                <span class="ml-1 opacity-0 group-hover:opacity-100 text-xs text-blue-500 font-normal">수정</span>
+              </p>
+            </div>
+            <div v-else class="flex gap-2 mt-1">
+              <input 
+                v-model="editBookText" 
+                class="flex-1 border-b border-[#f4f2e5] text-sm py-1 focus:outline-none focus:border-[#e8e6d9]"
+                @keyup.enter="saveBook"
+              />
+              <button @click="saveBook" class="text-xs text-blue-500">저장</button>
+              <button @click="isEditingBook = false" class="text-xs text-gray-400">취소</button>
+            </div>
           </div>
+
           <div>
             <label class="block text-xs text-[#999999] mb-1">선호 카테고리</label>
-            <div class="flex flex-wrap gap-2 mt-1">
+            <div v-if="!isEditingCategory" @click="isEditingCategory = true" class="cursor-pointer group flex flex-wrap gap-2 mt-1">
               <span v-if="userData?.selected_category" class="px-3 py-1 bg-[#f4f2e5] text-[#333333] text-xs rounded-full border border-[#e8e6d9]">
                 {{ userData.selected_category }}
               </span>
               <span v-else class="text-[#999999] text-sm">관심 분야를 등록해보세요</span>
+              <span class="opacity-0 group-hover:opacity-100 text-xs text-blue-500 self-center">수정</span>
+            </div>
+            <div v-else class="mt-2">
+              <select v-model="editCategory" class="w-full text-sm border p-1 rounded focus:outline-none focus:border-[#f4f2e5]">
+                <option v-for="cat in CATEGORIES" :key="cat" :value="cat">{{ cat }}</option>
+              </select>
+              <div class="flex justify-end gap-2 mt-2">
+                <button @click="saveCategory" class="text-xs text-blue-500">저장</button>
+                <button @click="isEditingCategory = false" class="text-xs text-gray-400">취소</button>
+              </div>
             </div>
           </div>
         </div>
@@ -120,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
   userName: String,
@@ -132,18 +155,37 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['loginClick', 'myPageClick', 'updateBio']);
+const emit = defineEmits(['loginClick', 'myPageClick', 'updateBio', 'updateProfileField']);
 
+const CATEGORIES = ['소설/시/희곡', '경제/경영', '자기계발', '인문/교양', '취미/실용', '어린이/청소년', '과학'];
+
+// 상태 관리
 const isEditingBio = ref(false);
 const editBioText = ref('');
+const isEditingBook = ref(false);
+const editBookText = ref('');
+const isEditingCategory = ref(false);
+const editCategory = ref('');
 
-const startEditBio = () => {
-  editBioText.value = props.userData?.bio || '';
-  isEditingBio.value = true;
+// 초기값 설정 (userData 변경 시 감시)
+watch(() => props.userData, (newVal) => {
+  if (newVal) {
+    editBioText.value = newVal.bio || '';
+    editBookText.value = newVal.favorite_book || '';
+    editCategory.value = newVal.selected_category || '';
+  }
+}, { immediate: true });
+
+const startEditBio = () => { isEditingBio.value = true; };
+const saveBio = () => { emit('updateBio', editBioText.value); isEditingBio.value = false; };
+
+const saveBook = () => {
+  emit('updateProfileField', { favorite_book: editBookText.value });
+  isEditingBook.value = false;
 };
 
-const saveBio = () => {
-  emit('updateBio', editBioText.value);
-  isEditingBio.value = false;
+const saveCategory = () => {
+  emit('updateProfileField', { selected_category: editCategory.value });
+  isEditingCategory.value = false;
 };
 </script>

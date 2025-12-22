@@ -28,7 +28,7 @@
       <LibraryPage v-else-if="activeTab === 'library'" :books="isLoggedIn ? libraryBooks : []" :isLoggedIn="isLoggedIn"
         @bookClick="handleBookClick" @loginClick="showLoginPage = true" />
       <ProfilePage v-else-if="activeTab === 'profile'" :userName="userName" :stats="stats" :isLoggedIn="isLoggedIn"
-        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="handleMyPageClick" @updateBio="handleUpdateBio"/>
+        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="handleMyPageClick" @updateBio="handleUpdateBio" @updateProfileField="handleUpdateProfileField"/>
       <SearchDialog :isOpen="isSearchOpen" :books="books" @close="isSearchOpen = false" @bookClick="handleBookClick" />
 
       <BottomNavigation :activeTab="activeTab" @tabChange="activeTab = $event" />
@@ -502,6 +502,17 @@ const handleMyPageClick = async () => {
     } else {
         showLoginPage.value = true;
     }
+};
+
+const handleUpdateProfileField = async (fieldData) => {
+  // fieldData는 { favorite_book: '...' } 또는 { selected_category: '...' } 형태
+  const success = await handleUpdateProfile(fieldData);
+  
+  if (success && userData.value) {
+    // 성공 시 로컬의 userData를 갱신
+    Object.assign(userData.value, fieldData);
+    alert("정보가 성공적으로 변경되었습니다.");
+  }
 };
 
 const handleShowSignup = () => {
