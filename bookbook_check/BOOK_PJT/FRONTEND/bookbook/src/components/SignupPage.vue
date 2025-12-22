@@ -191,11 +191,48 @@ const handleSubmit = (e: Event) => {
   }
 };
 
-const playVoiceSample = (voiceId: string) => {
+// const playVoiceSample = (voiceId: string) => {
+//   const voice = VOICE_OPTIONS.find((v) => v.id === voiceId);
+//   if (voice) {
+//     // Mock: 실제로는 TTS API를 사용
+//     alert(`${voice.name} 재생:\n"${voice.sample}"`);
+//   }
+// };
+
+const playVoiceSample = async (voiceId: string) => {
   const voice = VOICE_OPTIONS.find((v) => v.id === voiceId);
-  if (voice) {
-    // Mock: 실제로는 TTS API를 사용
-    alert(`${voice.name} 재생:\n"${voice.sample}"`);
+  if (!voice) return;
+
+  try {
+    // 백엔드 TTS API 호출 (App.vue의 주소와 동일하게 설정)
+    const response = await fetch('http://127.0.0.1:8000/api/books/tts/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: voice.sample, // "안녕하세요, 목소리 1번입니다."
+        voice: voiceId      // 'voice1', 'voice2' 등
+      })
+    });
+
+    if (!response.ok) throw new Error("음성 샘플 생성 실패");
+
+    // 바이너리 데이터를 Blob으로 변환하여 재생
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    
+    await audio.play();
+
+    // 재생 완료 후 메모리 해제
+    audio.onended = () => {
+      window.URL.revokeObjectURL(url);
+    };
+
+  } catch (error) {
+    console.error("목소리 샘플 재생 에러:", error);
+    alert("목소리 샘플을 불러오지 못했습니다.");
   }
 };
 
