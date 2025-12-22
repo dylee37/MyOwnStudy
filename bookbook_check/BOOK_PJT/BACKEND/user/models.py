@@ -61,6 +61,15 @@ class CustomUser(AbstractUser):
     # email 필드를 username 대신 로그인에 사용하기 위해 unique=True 설정
     email = models.EmailField(unique=True, blank=False)
 
+    # 한 줄 소개 추가
+    bio = models.TextField(max_length=200, blank=True, null=True, verbose_name="한 줄 소개")
+
+    # 좋아하는 도서 (기존에 있었지만 다시 확인)
+    favorite_book = models.CharField(max_length=100, blank=True, null=True, verbose_name="좋아하는 도서")
+    
+    # 선호 카테고리 (기존)
+    selected_category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, blank=False, verbose_name="선호 카테고리")
+
     # 추가 필드
     selected_voice = models.CharField(
         max_length=20,

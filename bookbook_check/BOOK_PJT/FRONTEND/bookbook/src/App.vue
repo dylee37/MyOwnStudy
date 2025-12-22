@@ -1,5 +1,6 @@
 <template>
   <div class="min-h-screen bg-background">
+    <OnboardingPage v-if="showOnboarding" @finish="handleFinishOnboarding" />
     <MyPage v-if="showMyPage" :userName="userName" :profileData="userProfile" @back="showMyPage = false" @logout="handleLogout"
       @deleteAccount="handleDeleteAccount" @updateProfile="handleUpdateProfile" />
 
@@ -28,7 +29,7 @@
       <LibraryPage v-else-if="activeTab === 'library'" :books="isLoggedIn ? libraryBooks : []" :isLoggedIn="isLoggedIn"
         @bookClick="handleBookClick" @loginClick="showLoginPage = true" />
       <ProfilePage v-else-if="activeTab === 'profile'" :userName="userName" :stats="stats" :isLoggedIn="isLoggedIn"
-        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="handleMyPageClick" />
+        :userData="userData" @loginClick="showLoginPage = true" @myPageClick="handleMyPageClick" @updateBio="handleUpdateBio" @updateProfileField="handleUpdateProfileField"/>
       <SearchDialog :isOpen="isSearchOpen" :books="books" @close="isSearchOpen = false" @bookClick="handleBookClick" />
 
       <BottomNavigation :activeTab="activeTab" @tabChange="activeTab = $event" />
@@ -56,6 +57,7 @@ import MyPage from './components/MyPage.vue';
 import BottomNavigation from './components/BottomNavigation.vue';
 import SearchDialog from './components/SearchDialog.vue';
 import AddCommentDialog from './components/AddCommentDialog.vue';
+import OnboardingPage from './components/OnboardingPage.vue';
 
 import axios from 'axios'
 
@@ -73,6 +75,7 @@ const userName = ref('복복');
 const libraryBooks = ref([]); 
 const books = ref([]);
 const userProfile = ref(null);
+const showOnboarding = ref(false);
 
 const store = useStore()
 
@@ -480,6 +483,20 @@ const handleUpdateProfile = async (data) => {
   }
 };
 
+const handleUpdateBio = async (newBio) => {
+  // 백엔드 API에 bio 필드를 PATCH 요청 보냄
+  // 기존 handleUpdateProfile 함수가 { bio: "내용" } 객체를 인자로 받음
+  const success = await handleUpdateProfile({ bio: newBio });
+  
+  if (success) {
+    // 서버 저장에 성공하면 로컬 화면 데이터도 즉시 업데이트
+    if (userData.value) {
+      userData.value.bio = newBio;
+    }
+    // alert("소개가 업데이트되었습니다."); // handleUpdateProfile 내부에 이미 alert 로직이 있다면 생략 가능
+  }
+};
+
 const handleMyPageClick = async () => {
     console.log('handleMyPageClick called, isLoggedIn:', isLoggedIn.value);
     if (isLoggedIn.value) {
@@ -488,6 +505,17 @@ const handleMyPageClick = async () => {
     } else {
         showLoginPage.value = true;
     }
+};
+
+const handleUpdateProfileField = async (fieldData) => {
+  // fieldData는 { favorite_book: '...' } 또는 { selected_category: '...' } 형태
+  const success = await handleUpdateProfile(fieldData);
+  
+  if (success && userData.value) {
+    // 성공 시 로컬의 userData를 갱신
+    Object.assign(userData.value, fieldData);
+    alert("정보가 성공적으로 변경되었습니다.");
+  }
 };
 
 const handleShowSignup = () => {
@@ -504,11 +532,18 @@ const handleShowLogin = () => {
 // onMounted 수정: 토큰이 있을 경우 데이터 로드 시도
 onMounted(() => {
   const token = localStorage.getItem('authToken');
+  const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
   if (token) {
     isLoggedIn.value = true; 
     fetchUserData();
     fetchLibraryBooks();
+  }else if (!hasSeenOnboarding) {
+    showOnboarding.value = true;
   }
   fetchBooks();
 });
+const handleFinishOnboarding = () => {
+  showOnboarding.value = false;
+  localStorage.setItem('hasSeenOnboarding', 'true'); 
+};
 </script>

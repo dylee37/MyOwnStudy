@@ -85,11 +85,11 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         # 클라이언트가 수정 요청을 보낼 수 있는 필드와 조회 필드를 지정
-        fields = ('nickname', 'selected_voice', 'email') 
+        fields = ('nickname', 'bio', 'favorite_book', 'selected_category', 'selected_voice', 'email')
         read_only_fields = ('email',) # 이메일은 수정 불가
 
     def validate_nickname(self, value):
-        # 닉네임이 변경되었고, 이미 존재하는지 확인 (Unique 검사)
+        # 닉네임이 변경되었고, 이미 존재하는지 확인
         request = self.context.get('request')
         user = request.user if request else None
         
