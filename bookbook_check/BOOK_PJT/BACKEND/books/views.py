@@ -16,6 +16,7 @@ from django.http import HttpResponse
 import json
 from openai import OpenAI
 import requests
+from rest_framework.authentication import TokenAuthentication
 
 
 
@@ -149,50 +150,55 @@ User = get_user_model() # Django 기본 User 모델을 가져옵니다.
 
 
 class RecommendationView(APIView):
-    """
-    사용자 맞춤형 도서 추천을 제공합니다.
-    - 로그인 사용자: LLM을 통해 취향(선호 카테고리, 좋아하는 책)에 맞는 2권 추천
-    - 로그아웃 사용자: 베스트셀러 중 2권 랜덤 추천
-    URL: GET /api/books/recommendations/
-    """
-    permission_classes = [permissions.AllowAny] # 인증 여부에 관계없이 접근 허용
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [permissions.AllowAny]
 
     def get(self, request, format=None):
-        # 1. 사용자 인증 여부 확인
+        # ⭐️ 1. 인증 확인 및 디버깅 (터미널에서 확인용)
+        print(f"DEBUG: 현재 접속 유저 -> {request.user}")
+
         if request.user.is_authenticated:
-            # --- 로그인 사용자 로직 ---
             user = request.user
             
-            # 사용자 정보 추출 (실제 필드 사용)
+            # ⭐️ 2. 유저의 카테고리에 맞는 후보 도서 20권 추출
+            candidate_books = Book.objects.filter(category__name=user.selected_category).order_by('?')[:20]
+            
+            # 카테고리에 책이 너무 적으면 전체에서 가져옴
+            if not candidate_books.exists() or candidate_books.count() < 5:
+                print(f"DEBUG: {user.selected_category} 카테고리에 책이 부족하여 전체 도서에서 추출합니다.")
+                candidate_books = Book.objects.all().order_by('?')[:20]
+
+            # GPT에게 보낼 리스트 문자열 생성
+            books_list_str = "\n".join([
+                f"ID:{b.id}, 제목:{b.title}, 저자:{b.author}, 카테고리:{b.category.name if b.category else '미지정'}" 
+                for b in candidate_books
+            ])
+
             user_info = {
                 "name": user.name,
                 "preferred_category": user.selected_category,
                 "favorite_book": user.favorite_book or "특정 책 없음"
             }
 
-            # LLM 프롬프트 구성
+            # ⭐️ 3. 프롬프트에 [후보 목록] 삽입
             prompt = f"""
-                당신은 사용자의 취향을 완벽하게 분석하는 독서 전문가입니다.
-                이번 추천의 최우선 목표는 사용자의 '선호 장르'와 일치하는 책을 찾는 것입니다.
+                당신은 도서 추천 전문가입니다. 아래 [후보 목록] 중에서 사용자의 취향에 가장 잘 맞는 책 2권을 선정하세요.
 
                 [사용자 프로필]
                 - 성함: {user_info['name']}
-                - 선호 장르(최우선): {user_info['preferred_category']}
+                - 선호 장르: {user_info['preferred_category']}
                 - 최근 관심 책: {user_info['favorite_book']}
 
-                [엄격한 추천 규칙]
+                [후보 목록]
+                {books_list_str}
 
-                1. 반드시 후보 목록 중 장르가 '{user_info['preferred_category']}'와 일치하는 책에서 추천해주세요.
-                2. 만약 후보 중 해당 장르가 부족하다면, 그나마 가장 성격이 유사한 책을 고르되 'reason'에 그 이유를 명확히 설명하세요.
-                3. '{user_info['preferred_category']}' 장르가 목록에 있음에도 다른 장르(예: 소설 등)를 추천하는 것은 금지합니다.
-                4. 응답은 반드시 아래 JSON 형식을 지키고, 'reason'은 {user_info['name']}님에게 직접 말하듯 친절하게 작성하세요.
-                {{
-                    "recommendations": [
-                        {{"book_id": ID, "reason": "추천사"}},
-                        ...
-                    ]
-                }}
-                """
+                [규칙]
+                1. 반드시 위 [후보 목록]에 있는 ID만 사용하세요. 없는 ID를 지어내지 마세요.
+                2. 선호 장르인 '{user_info['preferred_category']}'를 최우선으로 고려하세요.
+                3. 친절하고 개인화된 추천사(reason)를 작성하세요.
+                4. 반드시 JSON 형식으로 응답하세요:
+                {{ "recommendations": [ {{"book_id": ID, "reason": "추천사"}}, ... ] }}
+            """
 
             # LLM 호출 및 결과 처리
             llm_response_json = get_llm_recommendation(prompt)
