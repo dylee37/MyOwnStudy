@@ -22,9 +22,6 @@
     </div>
 
     <main v-else class="max-w-lg mx-auto px-4 py-6">
-      <div class="bg-gray-100 p-2 text-xs mb-4">
-        서재 도서 수: {{ books.length }} 권
-      </div>
       <div v-if="books.length === 0" class="text-center py-20">
         <p class="text-[#666666]">아직 추가된 책이 없습니다</p>
       </div>
