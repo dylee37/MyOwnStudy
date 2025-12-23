@@ -409,3 +409,64 @@ class SpeechToTextView(APIView):
             return Response({"error": f"음성 변환 중 오류 발생: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+class BookDocentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            book = get_object_or_404(Book, pk=pk)
+            voice_id = request.data.get('voice', 'alloy')
+            
+            voice_map = {
+                'voice1': 'alloy',
+                'voice2': 'echo',
+                'voice3': 'shimmer',
+                'voice4': 'onyx'
+            }
+            selected_voice = voice_map.get(voice_id, voice_id)
+
+            prompt = f"""
+            당신은 '북북(BOOKBOOK)' 서비스의 전문 AI 도슨트입니다. 
+            아래 도서 정보를 바탕으로, 마치 갤러리에서 책을 소개하듯 다정하고 몰입감 있는 오디오 스크립트를 작성해 주세요.
+
+            [도서 정보]
+            - 제목: {book.title}
+            - 저자: {book.author}
+            - 내용: {book.description}
+
+            [작성 가이드라인]
+            1. 인사와 도입: "안녕하세요, 오늘 여러분께 소개해 드릴 책은..."으로 시작하여 책의 첫인상을 묘사해 주세요.
+            2. 핵심 요약: 책의 전체 내용을 요약하되, 딱딱한 나열이 아닌 이 책이 던지는 핵심 질문이나 감동 포인트를 중심으로 설명해 주세요. (3~4문장)
+            3. 마무리: "이 책의 마지막 페이지를 덮을 때쯤 여러분은 어떤 생각을 하게 될까요?"와 같이 독자의 호기심을 자극하며 마쳐주세요.
+            4. 어조: 반드시 '해요체'를 사용하여 부드럽고 따뜻하게 작성해 주세요. 전문 용어보다는 쉬운 단어를 사용하세요.
+            5. 주의사항: 오디오로 읽힐 글이므로 문장이 너무 길지 않아야 하며, 한글 위주로 작성해 주세요.
+
+            스크립트만 응답해 주세요.
+            """
+            summary_text = get_llm_recommendation(prompt)
+            
+            if not summary_text:
+                return Response({"error": "요약 생성 실패"}, status=status.HTTP_400_BAD_REQUEST)
+
+            gms_url = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/audio/speech"
+            headers = {
+                "Authorization": f"Bearer {settings.GMS_KEY}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "gpt-4o-mini-tts",
+                "input": summary_text,
+                "voice": selected_voice,
+                "response_format": "mp3"
+            }
+
+            response = requests.post(gms_url, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                return HttpResponse(response.content, content_type="audio/mpeg")
+            else:
+                return Response(response.json(), status=response.status_code)
+
+        except Exception as e:
+            print(f"DOCENT ERROR: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
