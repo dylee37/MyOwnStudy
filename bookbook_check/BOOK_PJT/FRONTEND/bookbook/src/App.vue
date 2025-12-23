@@ -521,8 +521,29 @@ const handleShowLogin = () => {
   showLoginPage.value = true;
 };
 
+const isAppLoading = ref(false);
+
+const fetchBooksWithLoading = async () => {
+  isAppLoading.value = true;
+  
+  const delay = new Promise(resolve => setTimeout(resolve, 1000));
+  
+  try {
+    const [response] = await Promise.all([
+      axios.get('http://127.0.0.1:8000/api/books/'),
+      delay
+    ]);
+    books.value = response.data;
+  } catch (error) {
+    console.error('로드 실패:', error);
+  } finally {
+    isAppLoading.value = false;
+  }
+};
+
 
 onMounted(() => {
+  fetchBooksWithLoading();
   const token = localStorage.getItem('authToken');
   const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
   if (token) {
