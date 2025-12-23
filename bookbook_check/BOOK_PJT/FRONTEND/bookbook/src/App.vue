@@ -520,9 +520,18 @@ onMounted(() => {
   }
   fetchBooks();
 });
-const handleFinishOnboarding = () => {
+
+const handleFinishOnboarding = (mode) => {
   showOnboarding.value = false;
-  localStorage.setItem('hasSeenOnboarding', 'true'); 
+  localStorage.setItem('hasSeenOnboarding', 'true');
+
+  if (mode === 'login') {
+    showLoginPage.value = true;
+  } else {
+    activeTab.value = 'home';
+    showLoginPage.value = false;
+    showSignupPage.value = false;
+  }
 };
 </script>
 <style>
