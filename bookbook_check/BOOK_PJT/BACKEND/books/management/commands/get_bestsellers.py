@@ -36,9 +36,9 @@ class Command(BaseCommand):
         # 2. LLM에게 전달할 프롬프트 구성
         book_list_str = json.dumps(sampled_books_data, ensure_ascii=False, indent=2)
         prompt = f"""
-        당신은 한국 시장의 판매 트렌드를 잘 아는 전문 도서 추천가입니다.
+        당신은 한국 시장의 판매 트렌드를 잘 아는 도서 전문가입니다.
         아래는 시스템에 등록된 도서 {len(sampled_books_data)}권의 **무작위 샘플 목록**입니다.
-        이 샘플 데이터와 한국 도서 트렌드를 분석하여 '가장 높은 판매량을 보일 것으로 예상되는' **정확히 20권의 도서**를 선정해 주세요.
+        교보문고, 알라딘, 예스24의 베스트셀러 순위를 반영하여 이 도서 목록에서 베스트 셀러 **정확히 20권**을 뽑아주세요. 
         
         규칙:
         1. 응답은 오직 JSON 객체 형태로만 이루어져야 합니다.
@@ -70,6 +70,23 @@ class Command(BaseCommand):
 
             # 4. DB 업데이트: 모든 is_bestseller를 False로 초기화
             Book.objects.all().update(is_bestseller=False)
+
+            unique_ids = list(dict.fromkeys(bestseller_ids)) 
+            
+            # 만약 LLM이 20권보다 적게 보냈다면, 샘플 목록에서 랜덤하게 채움
+            if len(unique_ids) < 20:
+                self.stdout.write(self.style.WARNING(f"⚠️ LLM이 {len(unique_ids)}권만 선정했습니다. 부족한 {20 - len(unique_ids)}권을 랜덤하게 보충합니다."))
+                
+                # 이미 뽑힌 ID 제외하고 나머지 후보들 확보
+                remaining_candidates = [b['id'] for b in sampled_books_data if b['id'] not in unique_ids]
+                
+                # 부족한 만큼 추가 추출
+                extra_needed = 20 - len(unique_ids)
+                if len(remaining_candidates) >= extra_needed:
+                    extra_ids = random.sample(remaining_candidates, extra_needed)
+                    unique_ids.extend(extra_ids)
+
+            final_bestseller_ids = unique_ids[:20]
             
             # 5. 선정된 20권의 is_bestseller를 True로 설정
             Book.objects.filter(id__in=bestseller_ids[:20]).update(is_bestseller=True)
