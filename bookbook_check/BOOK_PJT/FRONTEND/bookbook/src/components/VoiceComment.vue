@@ -183,48 +183,6 @@ const readComment = async (text) => {
     isTTSPlaying.value = false;
   }
 };
-// const readComment = (text) => {
-//   if (!synth) {
-//     alert("죄송합니다. 이 브라우저는 음성 합성 기능을 지원하지 않습니다.");
-//     return;
-//   }
-
-//   if (synth.speaking && isTTSPlaying.value) {
-//     synth.cancel();
-//     return;
-//   }
-
-//   synth.cancel();
-
-//   const utterance = new SpeechSynthesisUtterance(text);
-//   isTTSPlaying.value = true;
-
-//   utterance.onend = () => isTTSPlaying.value = false;
-//   utterance.onpause = () => isTTSPlaying.value = false;
-//   utterance.onerror = (e) => {
-//     isTTSPlaying.value = false;
-//     console.error("TTS 재생 오류 발생:", e);
-//   };
-
-//   if (koreanVoices.value.length > 0) {
-//     const voiceMap = { 'voice1': 0, 'voice2': 1, 'voice3': 2, 'voice4': 3 };
-//     const selectedIndex = voiceMap[selectedVoice.value] ?? 0;
-    
-//     // 사용 가능한 목소리 개수 내에서 인덱스를 순환시킴
-//     const finalVoiceIndex = selectedIndex % koreanVoices.value.length;
-//     utterance.voice = koreanVoices.value[finalVoiceIndex];
-
-//   } else {
-//     console.warn("사용 가능한 한국어 목소리가 없습니다. 기본 목소리로 재생합니다.");
-//   }
-  
-//   utterance.rate = 1.0;
-//   utterance.pitch = 1.0;
-
-//   synth.speak(utterance);
-// };
-
-// TTS 재생 중 컴포넌트가 언마운트될 때 재생 중지
 import { onUnmounted } from 'vue';
 onUnmounted(() => {
   if (synth.speaking) {
