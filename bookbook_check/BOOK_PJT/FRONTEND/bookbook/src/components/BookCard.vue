@@ -1,10 +1,23 @@
 <template>
   <div @click="$emit('click', book)"
-    class="bg-white rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow border border-[#E0E0E0]">
+    class="bg-white rounded-lg overflow-hidden cursor-pointer border border-[#E0E0E0] relative
+
+           shadow-[0_4px_12px_rgba(0,0,0,0.05)]
+           
+           transition-all duration-[1000ms] cubic-bezier(0.175, 0.885, 0.32, 1.1)
+           will-change-transform
+           
+           hover:scale-[1.08] 
+           hover:-translate-y-4
+
+           hover:shadow-[0_40px_60px_-15px_rgba(0,0,0,0.12),0_20px_20px_-10px_rgba(0,0,0,0.08)]
+           hover:border-[#f4f2e5]
+           hover:z-50">
+    
     <div class="aspect-[3/4] bg-[#f4f2e5] relative overflow-hidden">
-      <img :src="book.cover" :alt="book.title" v-if="book.cover" />
-      <div v-else>
-      </div>
+      <img :src="book.cover" :alt="book.title" v-if="book.cover" 
+           class="w-full h-full object-cover transition-transform duration-[1200ms] ease-out hover:scale-110" />
+      <div v-else class="w-full h-full"></div>
     </div>
 
     <div class="p-3">
@@ -44,27 +57,6 @@ const props = defineProps({
 });
 
 defineEmits(['click']);
-
-// // ⭐️ currentCoverUrl 초기화: 백엔드에서 받은 props.book.cover를 사용합니다.
-// const currentCoverUrl = ref(props.book.cover);
-// // ⭐️ 대체 이미지 URL: 외부 URL 대신 로컬 더미 이미지를 사용합니다. (가장 확실한 방법)
-// const DEFAULT_COVER = dummy;
-
-
-// ⭐️ 에러 핸들러: 이미지가 로드 실패하면 로컬 더미 이미지로 변경합니다.
-// const handleImageError = () => {
-//   // 이미 기본 이미지라면 무한 루프 방지
-//   if (currentCoverUrl.value !== DEFAULT_COVER) {
-//     currentCoverUrl.value = DEFAULT_COVER;
-//   }
-// };
-
-// ⭐️ prop이 변경될 때마다 URL을 초기화합니다.
-// watch(() => props.book.cover, (newCover) => {
-//   currentCoverUrl.value = newCover;
-// }, { immediate: true });
-
-
 // ⭐️ 별점 계산 로직 (0으로 기본값 설정) ⭐️
 // ⭐️⭐️ computedRating 수정: 오직 사용자 TOKTOK 평균 평점만 반영 ⭐️⭐️
 const computedRating = computed(() => {

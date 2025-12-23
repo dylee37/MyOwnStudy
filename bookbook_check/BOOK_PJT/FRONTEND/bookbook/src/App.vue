@@ -547,3 +547,8 @@ const handleFinishOnboarding = () => {
   localStorage.setItem('hasSeenOnboarding', 'true'); 
 };
 </script>
+<style>
+  html {
+    overflow-y: scroll;
+  }
+</style>

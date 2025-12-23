@@ -1,33 +1,33 @@
 <template>
-  <header class="sticky top-0 bg-white border-b border-[#E0E0E0] z-10">
-    <div class="max-w-lg mx-auto px-4 py-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <p class="text-[#333333] " style="font-size: 1.8rem; font-weight: bold">BOOKBOOK</p>
-        </div>
-        <button @click="$emit('searchClick')" class="p-2 hover:bg-[#FAFAFA] rounded-full transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            class="text-[#333333]">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  </header>
-
   <div class="min-h-screen bg-background pb-20">
-    <div class="max-w-lg mx-auto px-4 py-6">
+    
+    <header class="sticky top-0 bg-white border-b border-[#E0E0E0] z-10">
+      <div class="max-w-lg mx-auto px-4 py-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-[#333333]" style="font-size: 1.8rem; font-weight: bold">BOOKBOOK</h1>
+          </div>
+          <button @click="$emit('searchClick')" class="p-2 hover:bg-[#FAFAFA] rounded-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="text-[#333333]">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
 
+    <main class="max-w-lg mx-auto px-4 py-6">
       <div class="mb-6">
         <h2 class="text-[#333333] mb-4" style="font-weight: 700">이번 주 베스트셀러</h2>
         <div v-if="bestsellers.length" class="grid grid-cols-2 gap-4">
           <BookCard v-for="book in bestsellers" :key="book.id" :book="book"
             @click="$emit('bookClick', book)" />
         </div>
-        <div v-else>
-            <p>베스트셀러 목록을 불러오는 중입니다...</p>
+        <div v-else class="text-center py-10">
+            <p class="text-sm text-gray-400">베스트셀러 목록을 불러오는 중입니다...</p>
         </div>
       </div>
 
@@ -41,11 +41,11 @@
             @click="$emit('bookClick', rec.book)" />
         </div>
         
-        <div v-else>
-          <p class="text-sm text-gray-500">추천 도서를 불러오는 중이거나, 추천할 도서가 없습니다.</p>
+        <div v-else class="text-center py-10">
+          <p class="text-sm text-gray-400">추천 도서를 불러오는 중이거나, 추천할 도서가 없습니다.</p>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
