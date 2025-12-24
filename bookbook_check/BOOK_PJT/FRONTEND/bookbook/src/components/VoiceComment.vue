@@ -17,20 +17,46 @@
         <span class="text-[#333333] font-semibold" style="font-size: 0.875rem">
           {{ comment.user_name }}
         </span>
-        <StarRating :rating="comment.rating" :size="12" />
+        <div v-if="!isEditing">
+          <StarRating :rating="comment.rating" :size="12" />
+        </div>
+        <div v-else class="flex items-center gap-1">
+          <button 
+            v-for="star in 5" :key="star" 
+            @click="editRating = star"
+            class="focus:outline-none"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" 
+              :fill="star <= editRating ? '#FFD700' : 'none'" 
+              stroke="#FFD700" stroke-width="2" viewBox="0 0 24 24">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </button>
+          <span class="text-[10px] text-[#999999] ml-1">{{ editRating }}점</span>
+        </div>
       </div>
 
       <div class="flex items-end" :class="{ 'flex-row-reverse': isMine }">
-        <div :class="[
-            'rounded-2xl px-4 py-3 max-w-xs',
-            isMine ? 'bg-[#f4f2e5] rounded-br-sm' : 'bg-white border border-[#E0E0E0] rounded-bl-sm'
-          ]">
+        <div v-if="!isEditing" :class="['rounded-2xl px-4 py-3 max-w-xs', isMine ? 'bg-[#f4f2e5] rounded-br-sm' : 'bg-white border border-[#E0E0E0] rounded-bl-sm']">
             <p class="text-[#333333]" style="font-size: 0.875rem">
               {{ comment.content || (comment.is_voice ? '음성 메시지' : '내용 없음') }}
             </p>
           </div>
+        
+        <div v-else class="max-w-xs w-full">
+          <textarea 
+            v-model="editText"
+            class="w-full p-3 text-sm border border-[#e8e6d9] rounded-xl focus:outline-none bg-white"
+            rows="2"
+          ></textarea>
+          <div class="flex gap-2 mt-1" :class="isMine ? 'justify-end' : 'justify-start'">
+            <button @click="handleUpdate" class="text-[10px] text-blue-500 font-bold">저장</button>
+            <button @click="isEditing = false" class="text-[10px] text-gray-400">취소</button>
+          </div>
+        </div>
 
         <button 
+          v-if="!isEditing"
           @click="readComment(comment.content)"
           class="p-2 transition-colors self-end"
           :class="[
@@ -53,12 +79,9 @@
 
       <div class="flex items-center gap-3 mt-1" :class="isMine ? 'flex-row-reverse justify-start' : 'flex-row justify-start'">
         
-        <button v-if="isMyComment" 
-          @click="handleDeleteClick"
-          class="text-xs text-red-500 hover:text-red-700 transition-colors"
-        >
-          삭제
-        </button>
+        <div v-if="isMyComment && !isEditing" class="flex gap-2">
+          <button @click="startEdit" class="text-xs text-blue-500">수정</button> <button @click="handleDeleteClick" class="text-xs text-red-500">삭제</button>
+        </div>
         
         <span class="text-[#999999]" style="font-size: 0.75rem">
           {{ formatTime(comment.created_at) }}
@@ -85,11 +108,28 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['deleteComment']); 
+const emit = defineEmits(['deleteComment', 'updateComment']); 
 
 const store = useStore();
 const currentUserIdFromStore = computed(() => store.getters.currentUser?.id);
 const selectedVoice = computed(() => store.getters.selectedVoice);
+
+const isEditing = ref(false);
+const editText = ref('');
+const editRating = ref(0);
+
+const startEdit = () => {
+  editText.value = props.comment.content;
+  editRating.value = props.comment.rating;
+  isEditing.value = true;
+};
+
+const handleUpdate = () => {
+  if (!editText.value.trim()) return;
+  // 부모 컴포넌트로 데이터 전달
+  emit('updateComment', { id: props.comment.id, content: editText.value, rating: editRating.value });
+  isEditing.value = false;
+};
 
 const isMyComment = computed(() => {
     const currentId = props.currentUserId ? parseInt(props.currentUserId, 10) : null;
@@ -183,48 +223,6 @@ const readComment = async (text) => {
     isTTSPlaying.value = false;
   }
 };
-// const readComment = (text) => {
-//   if (!synth) {
-//     alert("죄송합니다. 이 브라우저는 음성 합성 기능을 지원하지 않습니다.");
-//     return;
-//   }
-
-//   if (synth.speaking && isTTSPlaying.value) {
-//     synth.cancel();
-//     return;
-//   }
-
-//   synth.cancel();
-
-//   const utterance = new SpeechSynthesisUtterance(text);
-//   isTTSPlaying.value = true;
-
-//   utterance.onend = () => isTTSPlaying.value = false;
-//   utterance.onpause = () => isTTSPlaying.value = false;
-//   utterance.onerror = (e) => {
-//     isTTSPlaying.value = false;
-//     console.error("TTS 재생 오류 발생:", e);
-//   };
-
-//   if (koreanVoices.value.length > 0) {
-//     const voiceMap = { 'voice1': 0, 'voice2': 1, 'voice3': 2, 'voice4': 3 };
-//     const selectedIndex = voiceMap[selectedVoice.value] ?? 0;
-    
-//     // 사용 가능한 목소리 개수 내에서 인덱스를 순환시킴
-//     const finalVoiceIndex = selectedIndex % koreanVoices.value.length;
-//     utterance.voice = koreanVoices.value[finalVoiceIndex];
-
-//   } else {
-//     console.warn("사용 가능한 한국어 목소리가 없습니다. 기본 목소리로 재생합니다.");
-//   }
-  
-//   utterance.rate = 1.0;
-//   utterance.pitch = 1.0;
-
-//   synth.speak(utterance);
-// };
-
-// TTS 재생 중 컴포넌트가 언마운트될 때 재생 중지
 import { onUnmounted } from 'vue';
 onUnmounted(() => {
   if (synth.speaking) {

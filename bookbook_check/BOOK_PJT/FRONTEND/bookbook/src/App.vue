@@ -37,6 +37,7 @@
         @addComment="handleAddComment" 
         @loginClick="showLoginPage = true"
         @deleteComment="handleDeleteComment" 
+        @updateComment="handleUpdateComment"
       />
       <AddCommentDialog :isOpen="showAddCommentDialog" @close="showAddCommentDialog = false" @submit="handleSubmitComment" />
     </template>
@@ -386,6 +387,33 @@ const handleDeleteAccount = async () => {
   }
 };
 
+const handleUpdateComment = async ({ id, content, rating }) => {
+  if (!selectedBook.value) return;
+
+  const token = localStorage.getItem('authToken');
+  try {
+    const response = await axios.patch(
+      `http://127.0.0.1:8000/api/books/${selectedBook.value.id}/comments/${id}/`,
+      { content: content, rating: rating },
+      { headers: { Authorization: `Token ${token}` } }
+    );
+
+    const commentIndex = selectedBook.value.comments.findIndex(c => c.id === id);
+    if (commentIndex !== -1) {
+      selectedBook.value.comments[commentIndex].content = response.data.content;
+      selectedBook.value.comments[commentIndex].rating = response.data.rating;
+    }
+    const newAverage = calculateLocalAverage(selectedBook.value.comments);
+    const bookIndex = books.value.findIndex(b => b.id === selectedBook.value.id);
+    if (bookIndex !== -1) {
+      books.value[bookIndex].rating = newAverage;
+    }
+    alert('댓글이 수정되었습니다.');
+  } catch (error) {
+    console.error('댓글 수정 실패:', error);
+    alert('댓글 수정에 실패했습니다.');
+  }
+};
 
 // 댓글 삭제 처리 함수 (VoiceComment -> BookDetailPage -> App.vue로 전달된 이벤트 처리)
 const handleDeleteComment = async (commentId) => {

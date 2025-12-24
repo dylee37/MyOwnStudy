@@ -107,7 +107,7 @@
         </div>
         <div v-else>
           <VoiceComment v-for="comment in displayComments" :key="comment.id" :comment="comment"
-            :currentUserId="currentUserId" @deleteComment="handleDeleteComment" />
+            :currentUserId="currentUserId" @deleteComment="handleDeleteComment" @updateComment="$emit('updateComment', $event)" />
         </div>
       </div>
     </div> </div>
@@ -117,7 +117,7 @@
 import { ref, computed, watch } from 'vue';
 import StarRating from './StarRating.vue';
 import VoiceComment from './VoiceComment.vue';
-import dummy from '../assets/ex_img.jpeg'; //
+import dummy from '../assets/ex_img.jpeg';
 import { useStore } from 'vuex';
 
 const props = defineProps({

@@ -273,10 +273,10 @@ class CommentCreateView(generics.CreateAPIView):
         print(f"등록 결과: {'새로 생성됨' if created else '이미 존재함'}")
 
 
-class CommentDestroyView(generics.DestroyAPIView):
+class CommentUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     """
-    특정 도서에 속한 댓글을 삭제합니다.
-    URL: DELETE /api/books/<int:book_pk>/comments/<int:pk>/
+    특정 도서에 속한 댓글을 수정 및 삭제합니다.
+    URL: PATCH /api/books/<int:book_pk>/comments/<int:pk>/
     """
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer 
@@ -303,6 +303,11 @@ class CommentDestroyView(generics.DestroyAPIView):
             raise PermissionDenied("자신이 작성한 댓글만 삭제할 수 있습니다.")
             
         return comment
+    
+    def perform_update(self, serializer):
+        # 수정 시에도 작성자가 바뀌지 않도록 보장하며 저장
+        serializer.save(user=self.request.user)
+        print(f"--- 댓글 수정 완료 (유저: {self.request.user}) ---")
 
     def perform_destroy(self, instance):
         user = self.request.user
