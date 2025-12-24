@@ -174,11 +174,19 @@
       </div>
     </main>
   </div>
+
+  <div class="toast-container">
+    <Transition name="toast">
+      <div v-if="toast.show" class="toast-content">
+        <span class="message">{{ toast.message }}</span>
+      </div>
+    </Transition>
+  </div>
 </template>
 
 
 <script setup>
-import { ref, nextTick, watch, computed } from 'vue';
+import { ref, nextTick, watch, computed, reactive, provide } from 'vue';
 import { useStore } from 'vuex';
 
 const props = defineProps({
@@ -191,6 +199,22 @@ const props = defineProps({
     default: null,
   },
 });
+
+const toast = reactive({
+  show: false,
+  message: ''
+});
+
+const showToast = (msg) => {
+  toast.message = msg;
+  toast.show = true;
+  
+  setTimeout(() => {
+    toast.show = false;
+  }, 2500);
+};
+
+provide('showToast', showToast);
 
 const emit = defineEmits(['back', 'logout', 'deleteAccount', 'updateProfile']);
 
@@ -256,7 +280,7 @@ const handleNameUpdate = async () => {
     const success = await emit("updateProfile", { nickname: newName.value.trim() });
     if (success !== false) {
       isEditingName.value = false;
-      alert("닉네임이 변경되었습니다.");
+      showToast("닉네임이 변경되었습니다.");
     }
   } else {
     isEditingName.value = false;
@@ -268,3 +292,31 @@ const handleDeleteAccount = () => {
   emit('deleteAccount');
 };
 </script>
+
+<style scoped>
+.toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast-content {
+  background-color: rgba(51, 51, 51, 0.9);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+</style>

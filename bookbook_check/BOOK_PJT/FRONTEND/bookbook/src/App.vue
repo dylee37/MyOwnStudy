@@ -55,12 +55,17 @@
     </template>
 
   </div>
+
+  <div id="app">
+    <router-view /> <ToastMessage :show="toast.show" :message="toast.message" />
+  </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
+import { ref, onMounted, computed, reactive, provide } from 'vue';
 import { useStore } from 'vuex'
 
+import ToastMessage from './components/ToastMessage.vue';
 import HomePage from './components/HomePage.vue';
 import LibraryPage from './components/LibraryPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
@@ -98,6 +103,22 @@ const stats = reactive({
   comments: 0,
   averageRating: 0.0
 });
+
+const toast = reactive({
+  show: false,
+  message: ''
+});
+
+const showToast = (msg) => {
+  toast.message = msg;
+  toast.show = true;
+  
+  setTimeout(() => {
+    toast.show = false;
+  }, 2500);
+};
+
+provide('showToast', showToast);
 
 
 const handleBookClick = async (book) => {
@@ -182,7 +203,7 @@ const handleSubmitComment = async ({ text, isVoice, rating, voice_choice }) => {
 
   const token = localStorage.getItem('authToken');
   if (!token) {
-    alert('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+    showToast('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     showAddCommentDialog.value = false;
     showLoginPage.value = true;
     return;
@@ -209,7 +230,7 @@ const handleSubmitComment = async ({ text, isVoice, rating, voice_choice }) => {
       }
     );
 
-    alert(`${isVoice ? '음성' : '텍스트'} TOKTOK이 성공적으로 등록되었습니다!`);
+    showToast(`${isVoice ? '음성' : '텍스트'} TOKTOK이 성공적으로 등록되었습니다!`);
 
     if (selectedBook.value.comments) {
       selectedBook.value.comments.unshift(response.data); 
@@ -246,7 +267,7 @@ const handleSubmitComment = async ({ text, isVoice, rating, voice_choice }) => {
       errorMessage = `내용 오류: ${error.response.data.content[0]}`;
     }
 
-    alert(errorMessage);
+    showToast(errorMessage);
   }
 };
 
@@ -304,11 +325,11 @@ const handleLogin = async (email, password) => {
     showLoginPage.value = false;
     activeTab.value = 'home';
     
-    alert(`로그인 성공! ${userName.value}님 환영합니다.`);
+    showToast(`로그인 성공! ${userName.value}님 환영합니다.`);
 
   } catch (error) {
     console.error('로그인 실패:', error.response?.data || error.message);
-    alert('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.');
+    showToast('로그인 실패: 이메일 또는 비밀번호를 확인해주세요.');
     isLoggedIn.value = false;
   }
 };
@@ -329,7 +350,7 @@ const handleSignup = async (email, password, name, passwordConfirm, voice, favor
     });
 
     if (response.status === 201) {
-      alert('회원가입 성공! 이제 로그인해주세요.');
+      showToast('회원가입 성공! 이제 로그인해주세요.');
       showSignupPage.value = false;
       showLoginPage.value = true;
     }
@@ -347,7 +368,7 @@ const handleSignup = async (email, password, name, passwordConfirm, voice, favor
       }
     }
 
-    alert(errorMessage);
+    showToast(errorMessage);
   }
 };
 
@@ -358,7 +379,7 @@ const handleLogout = () => {
   showMyPage.value = false;
   userData.value = null;
   userName.value = '복복';
-  alert('로그아웃되었습니다.');
+  showToast('로그아웃되었습니다.');
 };
 
 const handleDeleteAccount = async () => {
@@ -379,11 +400,11 @@ const handleDeleteAccount = async () => {
     showMyPage.value = false;
     userData.value = null;
     userName.value = '복복';
-    alert('회원 탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
+    showToast('회원 탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
 
   } catch (error) {
     console.error('회원 탈퇴 실패:', error.response?.data || error.message);
-    alert('회원 탈퇴 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    showToast('회원 탈퇴 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
   }
 };
 
@@ -408,10 +429,10 @@ const handleUpdateComment = async ({ id, content, rating }) => {
     if (bookIndex !== -1) {
       books.value[bookIndex].rating = newAverage;
     }
-    alert('댓글이 수정되었습니다.');
+    showToast('댓글이 수정되었습니다.');
   } catch (error) {
     console.error('댓글 수정 실패:', error);
-    alert('댓글 수정에 실패했습니다.');
+    showToast('댓글 수정에 실패했습니다.');
   }
 };
 
@@ -421,7 +442,7 @@ const handleDeleteComment = async (commentId) => {
 
   const token = localStorage.getItem('authToken');
   if (!token) {
-    alert('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
+    showToast('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     return;
   }
 
@@ -433,7 +454,7 @@ const handleDeleteComment = async (commentId) => {
       }
     );
 
-    alert('TOKTOK이 성공적으로 삭제되었습니다.');
+    showToast('TOKTOK이 성공적으로 삭제되었습니다.');
 
     const commentIndex = selectedBook.value.comments.findIndex(c => c.id === commentId);
     if (commentIndex !== -1) {
@@ -455,14 +476,14 @@ const handleDeleteComment = async (commentId) => {
 
   } catch (error) {
     console.error('댓글 삭제 실패:', error.response?.data || error.message);
-    alert('댓글 삭제에 실패했습니다. (권한 없음 또는 서버 오류)');
+    showToast('댓글 삭제에 실패했습니다. (권한 없음 또는 서버 오류)');
   }
 };
 
 const handleUpdateProfile = async (data) => {
   const token = localStorage.getItem('authToken');
   if (!token) {
-    alert("인증 정보가 없습니다. 다시 로그인 해주세요.");
+    showToast("인증 정보가 없습니다. 다시 로그인 해주세요.");
     return false;
   }
 
@@ -497,15 +518,15 @@ const handleUpdateProfile = async (data) => {
     }
 
     if (data.nickname) {
-      alert("닉네임이 변경되었습니다.");
+      showToast("닉네임이 변경되었습니다.");
     } else if (data.selected_voice) {
-      alert("목소리가 변경되었습니다.");
+      showToast("목소리가 변경되었습니다.");
     }
 
     return true;
   } catch (error) {
     console.error("프로필 업데이트 API 오류:", error);
-    alert(`오류: ${error.message}`);
+    showToast(`오류: ${error.message}`);
     return false;
   }
 };
@@ -535,7 +556,7 @@ const handleUpdateProfileField = async (fieldData) => {
   
   if (success && userData.value) {
     Object.assign(userData.value, fieldData);
-    alert("정보가 성공적으로 변경되었습니다.");
+    showToast("정보가 성공적으로 변경되었습니다.");
   }
 };
 
@@ -601,4 +622,29 @@ const handleFinishOnboarding = (mode) => {
   html {
     overflow-y: scroll;
   }
+.toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast-content {
+  background-color: rgba(51, 51, 51, 0.9);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
 </style>

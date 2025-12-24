@@ -111,14 +111,38 @@
         </div>
       </div>
     </div> </div>
+
+      <div class="toast-container">
+        <Transition name="toast">
+          <div v-if="toast.show" class="toast-content">
+            <span class="message">{{ toast.message }}</span>
+          </div>
+        </Transition>
+      </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, reactive, provide } from 'vue';
 import StarRating from './StarRating.vue';
 import VoiceComment from './VoiceComment.vue';
 import dummy from '../assets/ex_img.jpeg';
 import { useStore } from 'vuex';
+
+const toast = reactive({
+  show: false,
+  message: ''
+});
+
+const showToast = (msg) => {
+  toast.message = msg;
+  toast.show = true;
+  
+  setTimeout(() => {
+    toast.show = false;
+  }, 2500);
+};
+
+provide('showToast', showToast);
 
 const props = defineProps({
   book: {
@@ -250,7 +274,7 @@ const toggleDocent = async () => {
     };
   } catch (error) {
     console.error("도슨트 에러:", error);
-    alert("도슨트 음성을 생성할 수 없습니다.");
+    showToast("도슨트 음성을 생성할 수 없습니다.");
   } finally {
     isDocentLoading.value = false;
   }
@@ -310,5 +334,31 @@ onUnmounted(() => {
 @keyframes rotate-siri {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast-content {
+  background-color: rgba(51, 51, 51, 0.9);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
 }
 </style>

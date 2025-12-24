@@ -106,16 +106,40 @@
       </div>
     </div>
   </Teleport>
+
+  <div class="toast-container">
+    <Transition name="toast">
+      <div v-if="toast.show" class="toast-content">
+        <span class="message">{{ toast.message }}</span>
+      </div>
+    </Transition>
+  </div>
 </template>
 
 
 
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, reactive, provide } from 'vue';
 import { useStore } from 'vuex';
 import StarRating from './StarRating.vue';
 import axios from 'axios';
+
+const toast = reactive({
+  show: false,
+  message: ''
+});
+
+const showToast = (msg) => {
+  toast.message = msg;
+  toast.show = true;
+  
+  setTimeout(() => {
+    toast.show = false;
+  }, 2500);
+};
+
+provide('showToast', showToast);
 
 const props = defineProps({
     isOpen: {
@@ -245,7 +269,7 @@ const handleSubmit = () => {
   if (!canSubmit.value) return;
 
   if (commentType.value === 'voice' && !sttCompleted.value) {
-    alert('음성 녹음을 먼저 완료해주세요.');
+    showToast('음성 녹음을 먼저 완료해주세요.');
     return;
   }
 
@@ -264,3 +288,31 @@ const handleSubmit = () => {
   sttError.value = false;
 };
 </script>
+
+<style scoped>
+.toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast-content {
+  background-color: rgba(51, 51, 51, 0.9);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+</style>

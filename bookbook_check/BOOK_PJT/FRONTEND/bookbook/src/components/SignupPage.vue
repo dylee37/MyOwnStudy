@@ -114,12 +114,36 @@
 
     </div>
   </div>
+
+  <div class="toast-container">
+    <Transition name="toast">
+      <div v-if="toast.show" class="toast-content">
+        <span class="message">{{ toast.message }}</span>
+      </div>
+    </Transition>
+  </div>
 </template>
 
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, reactive, provide } from 'vue';
 import { BookOpen, Volume2, ChevronDown } from 'lucide-vue-next';
+
+const toast = reactive({
+  show: false,
+  message: ''
+});
+
+const showToast = (msg) => {
+  toast.message = msg;
+  toast.show = true;
+  
+  setTimeout(() => {
+    toast.show = false;
+  }, 2500);
+};
+
+provide('showToast', showToast);
 
 // ----------------------------------------------------------------
 // 1. Props 및 Emit 정의 (React의 Interface/Props와 동일)
@@ -170,11 +194,11 @@ const showCategorySelector = ref(false);
 const handleSubmit = (e: Event) => {
   e.preventDefault();
   if (password.value !== passwordConfirm.value) {
-    alert('비밀번호가 일치하지 않습니다.');
+    showToast('비밀번호가 일치하지 않습니다.');
     return;
   }
   if (!selectedCategory.value) {
-    alert('카테고리를 선택해주세요.');
+    showToast('카테고리를 선택해주세요.');
     return;
   }
   if (email.value && password.value && name.value) {
@@ -221,7 +245,7 @@ const playVoiceSample = async (voiceId: string) => {
 
   } catch (error) {
     console.error("목소리 샘플 재생 에러:", error);
-    alert("목소리 샘플을 불러오지 못했습니다.");
+    showToast("목소리 샘플을 불러오지 못했습니다.");
   }
 };
 
@@ -235,6 +259,29 @@ const handleCategorySelect = (category: string) => {
 
 
 <style scoped>
-/* 여기에 Vue 컴포넌트 스코프 스타일을 추가할 수 있습니다. 
-   현재는 모든 스타일이 Tailwind CSS 클래스로 적용되어 있습니다. */
+.toast-container {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 9999;
+  pointer-events: none;
+}
+.toast-content {
+  background-color: rgba(51, 51, 51, 0.9);
+  color: #ffffff;
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+}
+.toast-enter-active, .toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-enter-from, .toast-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
 </style>
