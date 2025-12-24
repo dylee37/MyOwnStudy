@@ -56,9 +56,8 @@
 
   </div>
 
-  <div id="app">
-    <router-view /> <ToastMessage :show="toast.show" :message="toast.message" />
-  </div>
+  <ToastMessage :show="toast.show" :message="toast.message" />
+
 </template>
 
 <script setup>
@@ -619,9 +618,6 @@ const handleFinishOnboarding = (mode) => {
 };
 </script>
 <style>
-  html {
-    overflow-y: scroll;
-  }
 .toast-container {
   position: fixed;
   bottom: 100px;

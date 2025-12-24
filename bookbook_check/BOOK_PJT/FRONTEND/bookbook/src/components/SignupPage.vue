@@ -1,5 +1,5 @@
 <template>
-  <div class="fixed inset-0 bg-white z-50 flex items-center justify-center overflow-y-auto">
+  <div class="min-h-screen bg-white z-50 flex items-center justify-center overflow-y-auto">
     <div class="w-full max-w-md px-6 py-8 my-auto">
       <div class="flex flex-col items-center mb-8">
         <div class="w-20 h-20 rounded-full bg-[#f4f2e5] flex items-center justify-center mb-4">
